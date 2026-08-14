@@ -459,4 +459,60 @@ return [
         ],
         ];
     })(),
+
+    'sp' => (static function (): array {
+        // All shareable Spotify entities follow the same https://open.spotify.com/{type}/{id}
+        // shape, so a single route handles them via a {type} placeholder.
+        $types = ['track', 'album', 'artist', 'playlist', 'episode', 'show'];
+
+        return [
+        'label' => 'Spotify',
+        // Only open.spotify.com is supported. spotify.link short URLs are deliberately
+        // NOT handled: they are opaque tokens whose target can only be discovered with
+        // an outbound HTTP request, which would break the stateless, no-network design.
+        'input_hosts' => ['open.spotify.com'],
+        'routes' => [
+            'entity' => [
+                'parse' => static function (array $parts) use ($types): ?array {
+                    $path = trim((string) ($parts['path'] ?? ''), '/');
+                    $segments = $path === '' ? [] : explode('/', $path);
+
+                    // Spotify serves locale-prefixed URLs (e.g. /intl-pl/track/{id} and
+                    // /intl-pt-br/track/{id}). The prefix is presentational — drop it so
+                    // both variants collapse onto the same short link.
+                    if (preg_match('/^intl-[a-z]{2}(?:-[a-z]{2})?$/i', $segments[0] ?? '') === 1) {
+                        array_shift($segments);
+                    }
+
+                    $type       = strtolower($segments[0] ?? '');
+                    $identifier = $segments[1] ?? '';
+
+                    if (!in_array($type, $types, true)) {
+                        return null;
+                    }
+                    // Spotify IDs are base-62; every documented example is 22 characters.
+                    if (preg_match('/^[A-Za-z0-9]{22}$/', $identifier) !== 1) {
+                        return null;
+                    }
+
+                    return ['type' => $type, 'id' => $identifier];
+                },
+                'short_path' => '/sp/{type}/{id}',
+                // The canonical URL is rebuilt from type + id alone, which drops the ?si=
+                // share token that Spotify appends when sharing. It is a per-share tracking
+                // identifier tied to the sharer's account and is not needed to resolve the link.
+                'canonical_url' => 'https://open.spotify.com/{type}/{id}',
+                // iOS: the documented spotify: URI scheme. Spotify does support Universal
+                // Links on open.spotify.com, but Apple does not fire them when the URL is
+                // set from JavaScript (templates/jump.html), so the scheme is required here.
+                'ios_url' => 'spotify:{type}:{id}',
+                // Android: com.spotify.music verifies open.spotify.com via assetlinks.json,
+                // so the App Link opens the app natively; the intent keeps a web fallback
+                // for devices without the app installed.
+                'android_url' => 'intent://open.spotify.com/{type}/{id}#Intent;package=com.spotify.music;scheme=https;S.browser_fallback_url={canonical_url|urlenc};end',
+                'short_pattern' => '#^/sp/(?P<type>track|album|artist|playlist|episode|show)/(?P<id>[A-Za-z0-9]{22})$#',
+            ],
+        ],
+        ];
+    })(),
 ];

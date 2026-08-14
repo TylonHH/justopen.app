@@ -112,6 +112,66 @@ echo "\n[Instagram - unchanged, uses HTTPS approach]\n";
 $result = jo_parse_input_url('https://www.instagram.com/p/ABC123456xyz');
 assert_eq($result['provider'], 'ig', 'provider is ig');
 
+// ─── Spotify URL parsing ────────────────────────────────────────────────────
+
+echo "\n[Spotify parsing]\n";
+
+$result = jo_parse_input_url('https://open.spotify.com/track/6rqhFgbbKwnb9MLmUQDhG6');
+assert_eq($result['provider'], 'sp', 'provider is sp');
+assert_eq($result['route'], 'entity', 'route is entity');
+assert_eq($result['identifier'], '6rqhFgbbKwnb9MLmUQDhG6', 'track id extracted');
+assert_eq($result['short_path'], '/sp/track/6rqhFgbbKwnb9MLmUQDhG6', 'short_path correct');
+
+$result = jo_parse_input_url('https://open.spotify.com/album/4oktVvRuO1In9B7Hz0xm0a');
+assert_eq($result['short_path'], '/sp/album/4oktVvRuO1In9B7Hz0xm0a', 'album short_path');
+
+$result = jo_parse_input_url('https://open.spotify.com/episode/11dFghVXANMlKmJXsNCbNl');
+assert_eq($result['short_path'], '/sp/episode/11dFghVXANMlKmJXsNCbNl', 'podcast episode short_path');
+
+// Locale-prefixed URLs (/intl-xx/ and /intl-xx-yy/) must collapse onto the same short link.
+$result = jo_parse_input_url('https://open.spotify.com/intl-pl/track/6rqhFgbbKwnb9MLmUQDhG6');
+assert_eq($result['short_path'], '/sp/track/6rqhFgbbKwnb9MLmUQDhG6', 'intl-pl prefix stripped');
+assert_eq($result['canonical_url'], 'https://open.spotify.com/track/6rqhFgbbKwnb9MLmUQDhG6', 'intl canonical normalized');
+
+$result = jo_parse_input_url('https://open.spotify.com/intl-pt-br/album/4oktVvRuO1In9B7Hz0xm0a');
+assert_eq($result['short_path'], '/sp/album/4oktVvRuO1In9B7Hz0xm0a', 'intl-pt-br prefix stripped');
+
+// The ?si= share token is a per-share tracking id and must not survive into the canonical URL.
+$result = jo_parse_input_url('https://open.spotify.com/track/6rqhFgbbKwnb9MLmUQDhG6?si=abc123def456');
+assert_eq($result['canonical_url'], 'https://open.spotify.com/track/6rqhFgbbKwnb9MLmUQDhG6', 'si tracking param stripped');
+
+// ─── Short path resolution: Spotify ─────────────────────────────────────────
+
+echo "\n[Short path resolution - Spotify]\n";
+
+$resolved = jo_resolve_short_path('/sp/track/6rqhFgbbKwnb9MLmUQDhG6');
+assert_eq($resolved['provider'], 'sp', 'resolved provider is sp');
+assert_eq($resolved['canonical_url'], 'https://open.spotify.com/track/6rqhFgbbKwnb9MLmUQDhG6', 'canonical URL');
+assert_eq($resolved['ios_url'], 'spotify:track:6rqhFgbbKwnb9MLmUQDhG6', 'iOS uses documented spotify: URI');
+assert_contains($resolved['android_url'], 'intent://open.spotify.com/track/', 'Android uses intent://');
+assert_contains($resolved['android_url'], 'package=com.spotify.music', 'Android intent targets com.spotify.music');
+assert_contains($resolved['android_url'], 'S.browser_fallback_url=', 'Android has fallback URL');
+
+$resolved = jo_resolve_short_path('/sp/playlist/6rqhFgbbKwnb9MLmUQDhG6');
+assert_eq($resolved['ios_url'], 'spotify:playlist:6rqhFgbbKwnb9MLmUQDhG6', 'playlist iOS URI');
+
+// ─── Spotify rejections ─────────────────────────────────────────────────────
+
+echo "\n[Spotify rejections]\n";
+
+$threw = false;
+try { jo_parse_input_url('https://open.spotify.com/track/tooshort'); } catch (InvalidArgumentException $e) { $threw = true; }
+assert_eq($threw, true, 'malformed track id throws');
+
+$threw = false;
+try { jo_parse_input_url('https://open.spotify.com/search/queen'); } catch (InvalidArgumentException $e) { $threw = true; }
+assert_eq($threw, true, 'non-entity path (/search) throws');
+
+// spotify.link short URLs are opaque and would need a network round-trip to resolve.
+$threw = false;
+try { jo_parse_input_url('https://spotify.link/abc123'); } catch (InvalidArgumentException $e) { $threw = true; }
+assert_eq($threw, true, 'spotify.link short URL throws (out of scope)');
+
 // ─── Invalid URL handling ───────────────────────────────────────────────────
 
 echo "\n[Invalid URL handling]\n";

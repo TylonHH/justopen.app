@@ -8,7 +8,7 @@ You can also use [public, shared version of this software](https://justopen.app)
 
 ## What it does
 
-1. **Home page** — You paste a supported URL (YouTube, Instagram, X, Facebook, LinkedIn). The app parses it and returns a **short link** on your domain (e.g. `https://yourdomain.com/yt/dQw4w9WgXcQ`).
+1. **Home page** — You paste a supported URL (YouTube, Instagram, X, Facebook, LinkedIn, Spotify). The app parses it and returns a **short link** on your domain (e.g. `https://yourdomain.com/yt/dQw4w9WgXcQ`).
 2. **Short link visit** — Behavior depends on the device:
    - **Mobile (iOS / Android)** — A small landing page tries to open the **native app** via platform deep links (`youtube://`, `intent://`, etc.), with a fallback button to the canonical web URL.
    - **Desktop** — Immediate **HTTP redirect** to the original web URL (watch page, post, profile, etc.).
@@ -36,6 +36,7 @@ Optional: edit `translations.php` for copy, or extend `services.php` to add prov
 | **X** (Twitter) | `/x/` | Status / tweet URLs |
 | **Facebook** | `/fb/` | Reels, Watch videos (`facebook.com` and `fb.watch`), profile posts, profiles (`facebook.com/<handle>`, `fb.me/<handle>`) |
 | **LinkedIn** | `/li/` | Feed activity updates (`urn:li:activity:…`), shared posts (`/posts/<author>_<slug>-<id>-<code>` → `/li/p/<slug>`), member profiles (`/in/<handle>`) |
+| **Spotify** | `/sp/` | Tracks, albums, artists, playlists, podcast episodes and shows. Locale-prefixed URLs (`/intl-pl/…`) are normalized and the `?si=` share-tracking token is stripped. `spotify.link` short URLs are not supported — they are opaque and would require an outbound HTTP request to resolve. |
 
 Hostnames and parsing rules live in [`services.php`](services.php). Pull requests that add providers or fix edge-case URLs are welcome.
 
