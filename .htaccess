@@ -8,6 +8,10 @@ Options -Indexes
     # Templates are only consumed by the server-side rendering engine.
     RewriteRule ^templates(?:/|$) - [F,L]
 
+    # Amazon smart-link endpoint. Keeps a clean /amazon?url=... URL while the
+    # implementation remains isolated from the upstream justopen.app engine.
+    RewriteRule ^amazon/?$ amazon.php [L,QSA]
+
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^ index.php [L,QSA]

@@ -1,0 +1,52 @@
+captainVersion: 4
+services:
+  $$cap_appname:
+    image: ghcr.io/tylonhh/justopen.app:$$cap_image_tag
+    restart: always
+    caproverExtra:
+      containerHttpPort: '80'
+
+caproverOneClickApp:
+  variables:
+    - id: $$cap_image_tag
+      label: Image tag
+      defaultValue: latest
+      description: Use latest, a release tag, or a sha-* tag published by this fork.
+      validRegex: /^([^\s^\/])+$/
+
+  instructions:
+    start: |-
+      Deploy the self-hosted justopen.app smart-link service.
+
+      This fork adds:
+       - Docker/GHCR deployment for CapRover
+       - an Amazon smart-link endpoint for affiliate/product URLs
+       - Android Amazon-app intents with HTTPS fallback
+       - Instagram/Facebook/TikTok in-app-browser detection
+       - a safe iOS interstitial explaining how to open in Safari
+
+      The service is stateless: no database, Redis, or persistent volume is required.
+
+      Make sure ghcr.io/tylonhh/justopen.app is publicly readable before installing.
+
+    end: |-
+      The smart-link service has been deployed at:
+      https://$$cap_appname.$$cap_root_domain
+
+      Next steps:
+       1. Enable HTTPS for $$cap_appname.
+       2. Enable Force HTTPS.
+       3. Optionally attach a short custom domain such as go.example.com.
+       4. Test an Amazon URL with:
+          https://$$cap_appname.$$cap_root_domain/amazon?url=https%3A%2F%2Fwww.amazon.de%2Fdp%2FB0EXAMPLE
+
+      Keep LinkStack as your landing page and point selected LinkStack buttons to this service.
+      OpenReply may keep its own tracking redirect in front of these links.
+
+      Full notes:
+      https://github.com/TylonHH/justopen.app/blob/main/CAPROVER.md
+
+  displayName: justopen.app Smart Links
+  isOfficial: false
+  description: Self-hosted deep links and in-app browser escape, including Amazon smart links.
+  documentation: https://github.com/TylonHH/justopen.app/blob/main/CAPROVER.md
