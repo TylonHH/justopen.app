@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - name: PHP syntax
+        run: |
+          find . -maxdepth 2 -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Existing upstream tests
+        run: php tests.php
+
+      - name: Validate Dockerfile can build
+        run: docker build -t justopen-smartlinks:test .
