@@ -26,5 +26,15 @@ jobs:
       - name: Existing upstream tests
         run: php tests.php
 
+      - name: Amazon input smoke tests
+        run: |
+          short_output=$(php -r '$_SERVER["REQUEST_METHOD"]="POST"; $_SERVER["REQUEST_URI"]="/"; $_SERVER["HTTP_HOST"]="localhost"; $_POST["url"]="https://link.amazon/B08NZwPCe"; include "index.php";')
+          echo "$short_output" | grep -F 'amazon?url=https%3A%2F%2Flink.amazon%2FB08NZwPCe'
+
+          long_url='https://www.amazon.de/example/dp/B09V36WL6H?linkCode=ll2&tag=googl0ff-21&linkId=0865438b1b882167c769f37b9a8ab2f5&ref_=as_li_ss_tl'
+          long_output=$(AMAZON_TEST_URL="$long_url" php -r '$_SERVER["REQUEST_METHOD"]="POST"; $_SERVER["REQUEST_URI"]="/"; $_SERVER["HTTP_HOST"]="localhost"; $_POST["url"]=getenv("AMAZON_TEST_URL"); include "index.php";')
+          echo "$long_output" | grep -F 'tag%3Dgoogl0ff-21'
+          echo "$long_output" | grep -F 'linkId%3D0865438b1b882167c769f37b9a8ab2f5'
+
       - name: Validate Dockerfile can build
         run: docker build -t justopen-smartlinks:test .
