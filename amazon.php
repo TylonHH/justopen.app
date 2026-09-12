@@ -35,6 +35,7 @@ function jo_amazon_allowed_hosts(): array
         'amazon.in', 'www.amazon.in',
         'amazon.com.br', 'www.amazon.com.br',
         'amzn.to', 'www.amzn.to',
+        'link.amazon', 'www.link.amazon',
     ];
 }
 
