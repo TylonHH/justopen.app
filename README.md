@@ -63,6 +63,8 @@ References: [Android intents](https://developer.chrome.com/docs/android/intents)
 
 Missing credentials fail closed: admin returns a setup message with HTTP 503; existing public links remain available. Password changes invalidate sessions. Sessions expire after one hour of inactivity. Five failed logins from a socket IP block attempts for 15 minutes. Behind a proxy, users may share that socket IP; forwarded IP headers are deliberately not trusted.
 
+When placing a password hash or a password containing `$` in a Compose `.env`, surround the value with single quotes to preserve literal dollar signs. In CapRover environment fields, enter the raw value without quotes.
+
 New pages use local assets and a nonce-based CSP. Text is escaped, colors are constrained, and text/background contrast must meet 4.5:1. Credentials in destination URLs, non-HTTP schemes, control characters, and backslashes are rejected. Supply internationalized hostnames as punycode and percent-encode spaces in paths.
 
 SQLite keeps deployment small: use **one application replica on one host** with local persistent storage. Upgrade storage when multi-host writers become necessary.
