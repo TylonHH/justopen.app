@@ -18,6 +18,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
+          extensions: pdo_sqlite
 
       - name: PHP syntax
         run: |
@@ -25,6 +26,12 @@ jobs:
 
       - name: Existing upstream tests
         run: php tests.php
+
+      - name: Persisted smart links and security
+        run: php smartlinks-tests.php
+
+      - name: Browser handoff
+        run: node tests/browser-links.cjs
 
       - name: Amazon input smoke tests
         run: |

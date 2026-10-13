@@ -1,6 +1,12 @@
 <?php
 
 require_once __DIR__ . '/engine.php';
+require_once __DIR__ . '/smartlinks.php';
+
+// Persisted website links and their private editor are separate from legacy providers.
+if (sl_dispatch($_SERVER, $_GET, $_POST)) {
+    exit;
+}
 
 /**
  * Amazon is handled by the dedicated /amazon smart-link endpoint rather than
@@ -110,7 +116,11 @@ if ($method === 'POST' && ($path === '/' || $path === '/api/shorten')) {
     }
 }
 
-$response = jo_route_request($_SERVER, $_GET, $_POST);
+$legacyServer = $_SERVER;
+if ($path === '/social') {
+    $legacyServer['REQUEST_URI'] = '/';
+}
+$response = jo_route_request($legacyServer, $_GET, $_POST);
 
 http_response_code((int) ($response['status'] ?? 200));
 

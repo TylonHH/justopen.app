@@ -1,12 +1,19 @@
 Options -Indexes
 
+# Only front controllers may be requested directly. Keep tests/config/source private.
+<FilesMatch "^\.|^(engine|services|translations|smartlinks|tests|smartlinks-tests|router)\.php$|\.(md|yml|yaml|sqlite|log)$|^Dockerfile$|^LICENSE$|^captain-definition$">
+    Require all denied
+</FilesMatch>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
 
+    RewriteRule (^|/)\. - [F,L]
+
     # Block direct access to files in the templates/ directory.
     # Templates are only consumed by the server-side rendering engine.
-    RewriteRule ^templates(?:/|$) - [F,L]
+    RewriteRule ^(?:templates|tests|data|runtime|memory-bank|\.git|\.github)(?:/|$) - [F,L]
 
     # Amazon smart-link endpoint. Keeps a clean /amazon?url=... URL while the
     # implementation remains isolated from the upstream justopen.app engine.

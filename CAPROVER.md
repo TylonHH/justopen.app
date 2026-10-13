@@ -1,60 +1,58 @@
 # CapRover deployment
 
-This fork is prepared for container deployment on CapRover.
+Link Studio uses persistent SQLite storage. The old stateless deployment needs a volume and admin credentials before adopting this version.
 
-## Architecture
+## New installation
 
-The app is stateless. It does not require a database, Redis, or persistent volumes.
+1. Publish the reviewed commit with the supplied GHCR workflow, or deploy source using `captain-definition`.
+2. Create a persistent CapRover app with one replica and container HTTP port `80`.
+3. Mount a named volume at `/var/lib/justopen`.
+4. Set `JUSTOPEN_BASE_URL` to the exact public HTTPS origin.
+5. Set a unique `JUSTOPEN_ADMIN_PASSWORD` of at least 12 characters, or `JUSTOPEN_ADMIN_PASSWORD_HASH`.
+6. Enable HTTPS and Force HTTPS; do not expose login over plain HTTP.
+7. Deploy the tested image by immutable digest or reviewed `sha-*` tag.
+8. Verify `/healthz`, `/admin`, legacy links, and real Instagram DM opening on Android and iOS.
 
-- Web app: Apache + PHP
-- Image: `ghcr.io/tylonhh/justopen.app:latest`
-- Container port: `80`
-- Recommended public hostname: `go.example.com`
+The updated `caprover-one-click.yml` configures persistence and credentials for a new app. Publish the image first; the installer cannot build unpublished local code.
 
-## One-click install
+## Existing `justopen` app
 
-Use `caprover-one-click.yml` in CapRover's One-Click Apps/Databases screen.
+Read-only inspection on 2026-10-13 found one running instance, SSL on the default subdomain, no custom domain, no persistent volume, and Force HTTPS disabled. The deployed image was `ghcr.io/tylonhh/justopen.app:latest`.
 
-After deployment:
+The server's cached image resolved to `ghcr.io/tylonhh/justopen.app@sha256:2faea60e468e0f5ea818afdd3939cb853edd29bc38d1b3c2fc85488fa5f95810`. Recheck the running container image before a production update because the service specification uses a mutable tag.
 
-1. Enable HTTPS.
-2. Enable Force HTTPS.
-3. Point a short domain such as `go.example.com` at the app.
-4. Make the GHCR package public if CapRover cannot pull it anonymously.
+Before updating the running service:
 
-## Amazon / in-app browser escape
+1. Record its actual deployed image digest and configuration for rollback. Mutable `latest` is not a rollback guarantee.
+2. Configure persistence at `/var/lib/justopen`; use one replica and pin to the volume's host in a multi-host cluster.
+3. Configure the public HTTPS origin and admin secret; enable Force HTTPS.
+4. Deploy the reviewed image in one controlled update.
+5. Check legacy `/yt/...`, `/amazon?url=...`, `/healthz`, and the new editor.
 
-For Amazon links use:
+No production configuration or deployment was changed during local implementation. The project's `AGENTS.md` requires approval before service-impacting actions on the running instance.
 
-```text
-https://go.example.com/amazon?url=https%3A%2F%2Fwww.amazon.de%2Fdp%2FB0EXAMPLE%3Ftag%3Dyourtag-21
+## Backups
+
+Use SQLite's online backup API rather than copying only the main database during writes. Run in the container with read access; copy the protected result off the server:
+
+```sh
+php -r '$source=new SQLite3("/var/lib/justopen/justopen.sqlite"); $destination=new SQLite3("/var/lib/justopen/backup.sqlite"); if (!$source->backup($destination)) exit(1);'
 ```
 
-The complete destination URL is preserved, including an Amazon Associates `tag` and other query parameters.
+The official PHP image includes SQLite3 and PDO SQLite. Backups contain all target URLs and link settings. Protect them; keep admin secrets in your password manager. Sessions are not required to restore links.
 
-Behavior:
+Restore into an empty, stopped replacement instance, retain `www-data` ownership, and verify readiness and links before switching traffic. Never replace a live database during writes or prune the persistent volume during an image update.
 
-- Android: attempts to open the Amazon Shopping app with an Android `intent://` URL and falls back to the original HTTPS Amazon URL.
-- iOS inside Instagram/Facebook/TikTok and other detected in-app browsers: shows a short instruction to use the browser menu and open the page in Safari. iOS does not offer a reliable standards-based way for a webpage to force itself out of another app's embedded browser.
-- iOS in Safari / normal browsers: continues to the original Amazon HTTPS URL, allowing normal Universal Link behavior when supported by the device/app.
-- Desktop: redirects directly to the original Amazon URL.
+## Rollback
 
-This endpoint intentionally only accepts known Amazon hosts to avoid turning the service into a public arbitrary open redirect.
+Redeploy the recorded previous image digest. Retain the new volume for a retry. The old image serves social/Amazon routes but does not understand `/l/slug`; newly shared website links need the new implementation.
 
-## LinkStack
+## Local review
 
-Keep LinkStack as your public link-in-bio / landing page. Point selected LinkStack buttons at this deep-link service instead of directly at Amazon:
-
-```text
-LinkStack -> go.example.com/amazon?url=... -> Amazon app/system browser
+```sh
+docker compose -p justopen-preview up -d --build
 ```
 
-## OpenReply
+Configure a private `.env`, then open `http://localhost:8088/admin`. The localhost binding does not publish a preview on Netcup.
 
-OpenReply can keep its own tracking redirect in front:
-
-```text
-Instagram DM -> OpenReply tracked link -> go.example.com/amazon?url=... -> Amazon
-```
-
-This preserves OpenReply click analytics while the final hop handles the in-app-browser escape.
+LinkStack or OpenReply can point to `/l/slug` if desired. Only supported incoming UTM fields are forwarded when enabled.
