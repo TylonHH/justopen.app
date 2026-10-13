@@ -352,7 +352,7 @@ function sl_dispatch(array $server, array $get, array $post): bool
         }
         sl_session($server);
         $authenticated = sl_authenticated();
-        $error = ''; $status = 200;
+        $error = ''; $status = 200; $applied = false;
         if ($method === 'POST' && !sl_csrf($post)) {
             sl_render('message', ['title' => 'Sitzung abgelaufen', 'message' => 'Öffne die Verwaltung erneut und wiederhole die Aktion.'], 403); return true;
         }
@@ -383,7 +383,13 @@ function sl_dispatch(array $server, array $get, array $post): bool
             $mode = $action === 'defaults' ? 'defaults' : 'link';
             $edit = is_string($post['original_slug'] ?? null) ? $post['original_slug'] : '';
             try {
-                if (!in_array($action, ['save', 'defaults', 'preview'], true)) throw new InvalidArgumentException('Unbekannte Aktion.');
+                if (!in_array($action, ['save', 'defaults', 'preview', 'apply_defaults'], true)) throw new InvalidArgumentException('Unbekannte Aktion.');
+                if ($action === 'apply_defaults') {
+                    foreach (['brand', 'logo_url', 'primary_label', 'secondary_label', 'secondary_action', 'secondary_url',
+                        'background', 'surface', 'text', 'accent', 'accent_text', 'shape', 'delay'] as $key) {
+                        $post[$key] = $defaults[$key];
+                    }
+                }
                 $config = sl_config($post, $mode === 'defaults');
                 if ($path === '/admin/preview' || $action === 'preview') {
                     sl_render('landing', ['config' => $config, 'target' => sl_target($config), 'handoff' => '', 'preview' => true]); return true;
@@ -396,8 +402,12 @@ function sl_dispatch(array $server, array $get, array $post): bool
                 if ($edit !== '' && ($edit !== $config['slug'] || sl_link($edit) === null)) {
                     throw new InvalidArgumentException('Der Kurzname eines bestehenden Links kann nicht geändert werden.');
                 }
-                sl_save($config, $edit !== '');
-                sl_redirect('/admin?edit=' . rawurlencode($config['slug']) . '&saved=1'); return true;
+                if ($action === 'apply_defaults') {
+                    $applied = true;
+                } else {
+                    sl_save($config, $edit !== '');
+                    sl_redirect('/admin?edit=' . rawurlencode($config['slug']) . '&saved=1'); return true;
+                }
             } catch (InvalidArgumentException $e) {
                 $error = $e->getMessage(); $status = 422;
                 // Keep user input after validation errors; templates escape every value.
@@ -409,7 +419,7 @@ function sl_dispatch(array $server, array $get, array $post): bool
             }
         }
         $links = sl_db()->query('SELECT slug,config,updated_at FROM links ORDER BY updated_at DESC, slug')->fetchAll();
-        sl_render('admin', compact('config', 'defaults', 'links', 'mode', 'edit', 'error', 'origin') + ['saved' => isset($get['saved'])], $status);
+        sl_render('admin', compact('config', 'defaults', 'links', 'mode', 'edit', 'error', 'origin', 'applied') + ['saved' => isset($get['saved'])], $status);
     } catch (Throwable $e) {
         error_log('justopen: ' . $e->getMessage());
         sl_render('message', ['title' => 'Kurz nicht erreichbar', 'message' => 'Bitte später erneut versuchen. Die Serverkonfiguration muss geprüft werden.'], 503);
