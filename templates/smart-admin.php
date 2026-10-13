@@ -1,7 +1,7 @@
 <?php
 $isDefaults = $mode === 'defaults';
 $shortUrl = $edit !== '' ? $origin . '/l/' . $edit : '';
-$textFields = ['brand' => 'Marke', 'title' => 'Überschrift', 'primary_label' => 'Button 1 · Extern öffnen', 'secondary_label' => 'Button 2 · Text'];
+$textFields = ['brand' => 'Marke', 'title' => 'Linkname · nur zur Verwaltung', 'primary_label' => 'Button 1 · Extern öffnen', 'secondary_label' => 'Button 2 · Text'];
 $colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text' => 'Text', 'accent' => 'Button 1', 'accent_text' => 'Button-Text'];
 ?>
 <!doctype html>
@@ -40,14 +40,13 @@ $colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text
         <input type="hidden" name="original_slug" value="<?= jo_escape($edit) ?>">
         <?php if (!$isDefaults): ?>
         <fieldset><legend><span>01</span> Das Ziel</legend>
-            <label for="url">Zieladresse</label><input id="url" name="url" type="url" maxlength="8192" value="<?= jo_escape($config['url']) ?>" placeholder="https://hoerbuch.warsowerk.de/" required>
+            <label for="url">Zieladresse · beliebiger HTTP-/HTTPS-Link</label><input id="url" name="url" type="url" maxlength="8192" value="<?= jo_escape($config['url']) ?>" placeholder="https://deine-domain.de/beliebige-seite" required>
             <label for="slug">Kurzname <small><?= $edit !== '' ? 'Bleibt unverändert, damit geteilte Links gültig bleiben.' : 'Optional · wird sonst automatisch erzeugt.' ?></small></label><div class="slug-row"><span>/l/</span><input id="slug" name="slug" maxlength="64" pattern="[a-z0-9][a-z0-9_\-]{2,63}" value="<?= jo_escape($config['slug']) ?>" placeholder="hoerbuch" <?= $edit !== '' ? 'readonly' : '' ?>></div>
             <label class="check"><input name="active" type="checkbox" <?= $config['active'] ? 'checked' : '' ?>> Link aktiv</label>
         </fieldset>
         <?php endif; ?>
         <fieldset><legend><span><?= $isDefaults ? '01' : '02' ?></span> Deine Landingpage</legend>
             <?php foreach (['brand', 'title'] as $key): ?><label for="<?= $key ?>"><?= $textFields[$key] ?></label><input id="<?= $key ?>" name="<?= $key ?>" maxlength="160" value="<?= jo_escape($config[$key]) ?>" required><?php endforeach; ?>
-            <label for="description">Beschreibung</label><textarea id="description" name="description" rows="3" maxlength="1200" required><?= jo_escape($config['description']) ?></textarea>
             <label for="logo_url">Logo-Adresse <small>Optional · HTTPS-Bild, wird vom Besucher geladen.</small></label><input id="logo_url" name="logo_url" type="url" maxlength="8192" value="<?= jo_escape($config['logo_url']) ?>" placeholder="https://deine-domain.de/logo.png">
             <div class="two-columns"><?php foreach (['primary_label', 'secondary_label'] as $key): ?><div><label for="<?= $key ?>"><?= $textFields[$key] ?></label><input id="<?= $key ?>" name="<?= $key ?>" maxlength="160" value="<?= jo_escape($config[$key]) ?>" required></div><?php endforeach; ?></div>
             <label for="secondary_action">Button 2 · Aktion</label><select id="secondary_action" name="secondary_action"><?php foreach (['current' => 'Ziel im aktuellen Browser öffnen', 'copy' => 'Zieladresse kopieren', 'custom' => 'Andere Adresse öffnen'] as $value => $label): ?><option value="<?= $value ?>" <?= $config['secondary_action'] === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select>
@@ -71,9 +70,7 @@ $colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text
         <div class="landing-card">
             <div class="brand"><img id="preview-logo" class="brand-logo" alt="" referrerpolicy="no-referrer" hidden><span id="preview-mark" class="brand-mark" aria-hidden="true">↗</span><span id="preview-brand"></span></div>
             <div class="destination"><span class="status-dot" aria-hidden="true"></span><span id="preview-host">deine-domain.de</span></div>
-            <h2 id="preview-title"></h2><p id="preview-description" class="description"></p>
             <div class="landing-actions"><button id="preview-primary" class="button primary" type="button" disabled></button><button id="preview-secondary" class="button secondary" type="button" disabled></button></div>
-            <p class="landing-footer">Du entscheidest, wo es weitergeht.</p>
         </div>
     </div>
     <p class="preview-note">Die Vorschau folgt deinen Eingaben.<br>Teste den fertigen Link direkt in Instagram-DMs auf iPhone und Android.</p>

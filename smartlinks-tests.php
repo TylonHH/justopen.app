@@ -45,6 +45,10 @@ check(strpos(sl_target($config, ['utm_medium' => ['nested']]), 'utm_medium') ===
 check(strpos(sl_target($config, ['utm_medium' => "dm\r\nInjected"]), 'utm_medium') === false, 'Control characters in tracking ignored.');
 $f = form($config);
 $validated = sl_config($f);
+check($validated['description'] === '', 'Landing needs no description.');
+foreach (['https://example.org/any/page?key=value#section', 'https://www.amazon.de/dp/B012345678?tag=example-21', 'http://another.example:8080/a%2Fb?x=1&x=2'] as $arbitrary) {
+    check(sl_config(array_replace($f, ['url' => $arbitrary]))['url'] === $arbitrary, 'Arbitrary host accepted without provider restrictions.');
+}
 check($validated['slug'] === 'hoerbuch' && $validated['url'] === $original, 'Admin form validation.');
 rejects(static fn() => sl_config(array_replace($f, ['url' => ['bad']])), 'Array URL rejected.');
 rejects(static fn() => sl_config(array_replace($f, ['slug' => '../escape'])), 'Slug traversal rejected.');
@@ -56,7 +60,7 @@ rejects(static fn() => sl_config(array_replace($f, ['delay' => '301'])), 'Countd
 rejects(static fn() => sl_config(array_replace($f, ['delay' => '1.5'])), 'Fractional countdown rejected.');
 check(sl_config(array_replace($f, ['delay' => '0']))['delay'] === '0', 'Immediate attempt is not disabled.');
 rejects(static fn() => sl_config(array_replace($f, ['secondary_action' => 'custom', 'secondary_url' => ''])), 'Custom second action needs URL.');
-$f['title'] = '<script>alert("test")</script>';
+$f['brand'] = '<script>alert("test")</script>';
 $safe = sl_config($f);
 ob_start(); sl_render('landing', ['config' => $safe, 'target' => sl_target($safe), 'handoff' => 'http://localhost:8088/go/hoerbuch', 'preview' => false]); $html = ob_get_clean();
 check(strpos($html, '<script>alert(') === false && strpos($html, '&lt;script&gt;') !== false, 'Stored HTML escaped in landing.');

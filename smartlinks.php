@@ -6,8 +6,8 @@ const SL_UTM = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_con
 function sl_defaults(): array
 {
     return [
-        'brand' => 'justopen', 'title' => 'Öffne deinen Link.',
-        'description' => 'Im externen Browser kannst du diese Seite bequem weiter nutzen.',
+        'brand' => 'justopen', 'title' => 'Mein Link',
+        'description' => '',
         'primary_label' => 'Im Browser öffnen', 'secondary_label' => 'Hier weiter öffnen',
         'secondary_action' => 'current', 'secondary_url' => '', 'logo_url' => '',
         'background' => '#f4f3ee', 'surface' => '#ffffff', 'text' => '#182b25',
@@ -87,8 +87,8 @@ function sl_contrast(string $a, string $b): float
 function sl_config(array $input, bool $defaults = false): array
 {
     $config = sl_defaults();
-    foreach (['brand', 'title', 'description', 'primary_label', 'secondary_label'] as $key) {
-        $config[$key] = sl_string($input, $key, $key === 'description' ? 1200 : 160);
+    foreach (['brand', 'title', 'primary_label', 'secondary_label'] as $key) {
+        $config[$key] = sl_string($input, $key);
         if ($config[$key] === '') throw new InvalidArgumentException('Bitte alle Texte ausfüllen.');
     }
     foreach (['background', 'surface', 'text', 'accent', 'accent_text'] as $key) {

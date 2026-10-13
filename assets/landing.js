@@ -50,9 +50,7 @@
     let attempted = false;
 
     if (env.inApp) {
-        hint.hidden = false;
-        if (!env.instagram) hint.textContent = 'Wenn sich kein Browser öffnet: Öffne das Menü der App und wähle „Im Browser öffnen“ oder „In Safari öffnen“.';
-        if (env.android) hint.textContent = 'Bestätige den Wechsel zu Chrome. Falls Chrome fehlt oder die App den Wechsel blockiert: Nutze das App-Menü und wähle „Im Browser öffnen“.';
+        hint.hidden = !env.manual;
     }
     external.href = externalHref(target, card.dataset.handoff, location.href, env);
 
@@ -67,9 +65,10 @@
         stopCountdown('Automatisches Öffnen beendet.');
         if (env.manual) {
             event.preventDefault();
-            feedback.textContent = 'Nutze bitte das App-Menü, um diesen Link im externen Browser zu öffnen.';
+            hint.hidden = false;
         } else if (env.inApp) {
-            feedback.textContent = 'Browserwechsel angefragt. Falls du hier bleibst, bestätige den Wechsel oder nutze das App-Menü.';
+            hint.hidden = false;
+            feedback.textContent = 'Browserwechsel angefragt.';
         }
     });
     secondary.addEventListener('click', async event => {
@@ -79,7 +78,7 @@
         try {
             if (!navigator.clipboard) throw new Error('Clipboard unavailable');
             await navigator.clipboard.writeText(target);
-            feedback.textContent = 'Link kopiert. Du kannst ihn in deinem Browser einfügen.';
+            feedback.textContent = 'Link kopiert.';
         } catch (_) {
             const fallback = document.getElementById('copy-fallback');
             fallback.hidden = false;
@@ -106,6 +105,6 @@
         timer = setInterval(tick, 250);
         tick();
     } else if (card.dataset.delay !== '' && env.manual) {
-        feedback.textContent = 'Diese App benötigt manuelles Öffnen über ihr Browser-Menü.';
+        hint.hidden = false;
     }
 })(typeof window === 'undefined' ? null : window);

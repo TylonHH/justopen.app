@@ -7,7 +7,8 @@ Self-hosted website links with a customizable two-button landing page. Create a 
 - Any complete HTTP(S) destination, including paths, query parameters, affiliate tags, and fragments.
 - Persistent `/l/your-name` links; edit destinations without changing already shared links.
 - Two buttons: request an external browser, then open in the current browser, copy the destination, or open a different URL.
-- Per-link brand, heading, description, logo URL, button labels, five colors, and rounded/square buttons.
+- Minimal visitor page: logo/brand, destination hostname, and two buttons. No marketing heading, description, or footer.
+- Per-link logo URL, brand, button labels, five colors, and rounded/square buttons; link names are for administration only.
 - Live mobile preview and a separate preview page that disables navigation and the countdown.
 - Optional automatic opening attempt after 0–300 seconds, with a visitor cancellation checkbox. Blank means disabled.
 - Six UTM fields, optionally forwarding UTM supplied on the shared short link.

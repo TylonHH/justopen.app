@@ -4,7 +4,7 @@
     const preview = document.getElementById('live-preview');
     const field = name => form.elements.namedItem(name);
     const value = name => field(name) ? field(name).value : '';
-    const mapping = {brand:'preview-brand', title:'preview-title', description:'preview-description', primary_label:'preview-primary', secondary_label:'preview-secondary'};
+    const mapping = {brand:'preview-brand', primary_label:'preview-primary', secondary_label:'preview-secondary'};
 
     function luminance(hex) {
         const c = hex.match(/[a-f\d]{2}/gi).map(part => parseInt(part, 16) / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
