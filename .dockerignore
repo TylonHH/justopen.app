@@ -4,3 +4,13 @@ CAPROVER.md
 README.md
 LICENSE
 *.log
+tests
+tests.php
+smartlinks-tests.php
+runtime
+data
+.env
+*.sqlite*
+artifacts
+node_modules
+.env.example

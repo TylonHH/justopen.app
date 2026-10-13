@@ -1,0 +1,7 @@
+.env
+runtime/
+data/
+artifacts/
+*.sqlite*
+*.log
+node_modules/
