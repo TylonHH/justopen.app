@@ -12,7 +12,7 @@ Self-hosted website links with a customizable two-button landing page. Create a 
 - Live mobile preview and a separate preview page that disables navigation and the countdown.
 - Optional automatic opening attempt after 0–300 seconds, with a visitor cancellation checkbox. Blank means disabled.
 - Six UTM fields, optionally forwarding UTM supplied on the shared short link.
-- Reusable defaults for new links; changes to defaults do not change existing links.
+- Reusable defaults for new links; existing links offer “Vorlage anwenden” to load the latest styling, button actions and opening delay into the editor. Review and save to update the link. Destination, alias, internal name and tracking stay unchanged.
 - Private administration, CSRF protection, session expiry, password rotation invalidation, and persistent login rate limiting.
 - Deactivate/reactivate links without deleting their configuration. Disabled landing and handoff URLs return HTTP 410.
 - Original social app deep links and the Amazon endpoint remain available.

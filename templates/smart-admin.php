@@ -32,10 +32,11 @@ $colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text
     <div class="editor-heading"><p class="eyebrow"><?= $isDefaults ? 'DEINE VORLAGE' : ($edit !== '' ? 'LINK BEARBEITEN' : 'NEUER LINK') ?></p><h1><?= $isDefaults ? 'Ein Stil für deinen Start.' : ($edit !== '' ? 'Mach den Link zu deinem.' : 'Ein Link. Zwei Möglichkeiten.') ?></h1><p><?= $isDefaults ? 'Diese Einstellungen gelten für neue Links. Bestehende Links behalten ihre Gestaltung.' : 'Ziel festlegen, Landingpage gestalten und in deiner DM teilen.' ?></p></div>
     <?php if ($error !== ''): ?><p class="alert error" role="alert"><?= jo_escape($error) ?></p><?php endif; ?>
     <?php if ($saved && $error === ''): ?><p class="alert success" role="status"><?= $isDefaults ? 'Vorlage gespeichert.' : 'Link gespeichert. Bereit zum Teilen.' ?></p><?php endif; ?>
+    <?php if ($applied && $error === ''): ?><p class="alert success" role="status">Vorlage übernommen. Vorschau prüfen und Änderungen speichern.</p><?php endif; ?>
     <?php if ($shortUrl !== ''): ?>
         <div class="share-box"><label for="share-url">Dein DM-Link</label><div class="share-row"><input id="share-url" readonly value="<?= jo_escape($shortUrl) ?>"><button type="button" class="button primary compact" id="copy-short">Kopieren</button><a class="button secondary compact" href="<?= jo_escape($shortUrl) ?>" target="_blank" rel="noopener noreferrer">Öffnen ↗</a></div><p id="share-feedback" role="status" aria-live="polite"></p></div>
     <?php endif; ?>
-    <form id="editor-form" method="post" action="/admin">
+    <form id="editor-form" method="post" action="/admin" data-unsaved="<?= $applied ? 'true' : 'false' ?>">
         <input type="hidden" name="csrf" value="<?= jo_escape($_SESSION['csrf']) ?>">
         <input type="hidden" name="original_slug" value="<?= jo_escape($edit) ?>">
         <?php if (!$isDefaults): ?>
@@ -46,6 +47,7 @@ $colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text
         </fieldset>
         <?php endif; ?>
         <fieldset><legend><span><?= $isDefaults ? '01' : '02' ?></span> Deine Landingpage</legend>
+            <?php if (!$isDefaults && $edit !== ''): ?><button class="button secondary compact" name="action" value="apply_defaults">Vorlage anwenden</button><p class="field-note">Übernimmt Gestaltung, Button-Aktionen und Öffnungszeit aus der aktuellen Vorlage. Ziel, Kurzname, Linkname und Tracking bleiben erhalten. Erst Speichern aktualisiert den Link.</p><?php endif; ?>
             <?php foreach (['brand', 'title'] as $key): ?><label for="<?= $key ?>"><?= $textFields[$key] ?></label><input id="<?= $key ?>" name="<?= $key ?>" maxlength="160" value="<?= jo_escape($config[$key]) ?>" required><?php endforeach; ?>
             <label for="logo_url">Logo-Adresse <small>Optional · HTTPS-Bild, wird vom Besucher geladen.</small></label><input id="logo_url" name="logo_url" type="url" maxlength="8192" value="<?= jo_escape($config['logo_url']) ?>" placeholder="https://deine-domain.de/logo.png">
             <div class="two-columns"><?php foreach (['primary_label', 'secondary_label'] as $key): ?><div><label for="<?= $key ?>"><?= $textFields[$key] ?></label><input id="<?= $key ?>" name="<?= $key ?>" maxlength="160" value="<?= jo_escape($config[$key]) ?>" required></div><?php endforeach; ?></div>

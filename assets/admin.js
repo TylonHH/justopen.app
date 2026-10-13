@@ -59,7 +59,7 @@
         }
     });
     // Never flag preview submissions as saved; the editor remains in this tab.
-    let dirty = false;
+    let dirty = form.dataset.unsaved === 'true';
     form.addEventListener('input', () => { dirty = true; });
     form.addEventListener('change', () => { dirty = true; });
     form.addEventListener('submit', event => {
