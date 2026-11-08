@@ -30,6 +30,9 @@ jobs:
       - name: Persisted smart links and security
         run: php smartlinks-tests.php
 
+      - name: Stateless native app links and security
+        run: php app-links-tests.php
+
       - name: Browser handoff
         run: node tests/browser-links.cjs
 

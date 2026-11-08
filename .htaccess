@@ -1,7 +1,7 @@
 Options -Indexes
 
 # Only front controllers may be requested directly. Keep tests/config/source private.
-<FilesMatch "^\.|^(engine|services|translations|smartlinks|tests|smartlinks-tests|router)\.php$|\.(md|yml|yaml|sqlite|log)$|^Dockerfile$|^LICENSE$|^captain-definition$">
+<FilesMatch "^\.|^(engine|services|translations|smartlinks|app-links|tests|smartlinks-tests|app-links-tests|router)\.php$|\.(md|yml|yaml|sqlite|log)$|^Dockerfile$|^LICENSE$|^captain-definition$">
     Require all denied
 </FilesMatch>
 

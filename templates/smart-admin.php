@@ -26,6 +26,7 @@ $colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text
         <p id="search-empty" class="empty-state" hidden>Kein passender Link.</p>
     </nav>
     <a class="defaults-link <?= $isDefaults ? 'selected' : '' ?>" href="/admin?view=defaults">Vorlage für neue Links <span aria-hidden="true">↗</span></a>
+    <a class="defaults-link" href="/apps">App-Links · Gmail, WhatsApp & mehr <span aria-hidden="true">↗</span></a>
     <p class="sidebar-note">Eigene Links. Eigene Gestaltung.<br>Ohne Abo und ohne Klicklimit.</p>
 </aside>
 <main class="editor">

@@ -12,6 +12,7 @@ Link Studio uses persistent SQLite storage. The old stateless deployment needs a
 6. Enable HTTPS and Force HTTPS; do not expose login over plain HTTP.
 7. Deploy the tested image by immutable digest or reviewed `sha-*` tag.
 8. Verify `/healthz`, `/admin`, legacy links, and real Instagram DM opening on Android and iOS.
+9. For native app links, verify `/apps`, `/gmail?mid=test%40example.org`, and `/amazon?url=…`. Set the actual HTTPS origin in the [n8n Telegram template](docs/n8n-telegram.md) only after these routes are deployed. No database migration is needed for the stateless app routes.
 
 The updated `caprover-one-click.yml` configures persistence and credentials for a new app. Publish the image first; the installer cannot build unpublished local code.
 

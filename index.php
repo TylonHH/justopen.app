@@ -2,6 +2,11 @@
 
 require_once __DIR__ . '/engine.php';
 require_once __DIR__ . '/smartlinks.php';
+require_once __DIR__ . '/app-links.php';
+
+if (jo_app_dispatch($_SERVER, $_GET)) {
+    exit;
+}
 
 // Persisted website links and their private editor are separate from legacy providers.
 if (sl_dispatch($_SERVER, $_GET, $_POST)) {
