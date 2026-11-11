@@ -12,7 +12,7 @@
     </style>
     <script src="/assets/landing.js" defer></script>
 </head>
-<body class="landing" data-preview="<?= $preview ? 'true' : 'false' ?>">
+<body class="landing lp-<?= jo_escape($config['structure']) ?>" data-preview="<?= $preview ? 'true' : 'false' ?>">
     <?php if ($preview): ?><div class="preview-banner">Vorschau · Buttons und Countdown sind deaktiviert. <a href="/admin">Zur Verwaltung</a></div><?php endif; ?>
     <main class="landing-card" id="landing" data-target="<?= jo_escape($target) ?>"
         data-handoff="<?= jo_escape($handoff) ?>" data-delay="<?= jo_escape($config['delay']) ?>"

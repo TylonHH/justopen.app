@@ -9,6 +9,8 @@ Self-hosted website links with a customizable two-button landing page. Create a 
 - Two buttons: request an external browser, then open in the current browser, copy the destination, or open a different URL.
 - Minimal visitor page: logo/brand, destination hostname, and two buttons. No marketing heading, description, or footer.
 - Per-link logo URL, brand, button labels, five colors, and rounded/square buttons; link names are for administration only.
+- Landing page layouts: save any number of reusable looks (structure + colors + button shape) under `/admin?view=layouts`, then pick one from a dropdown while creating or editing a link. Layouts can be created, copied, edited, and deleted; each link keeps its own copy, so changing or deleting a layout never alters links that were already shared.
+- Three built-in structures: **Karte** (classic centered card), **Business** (wide, left-aligned sheet with accent rule and side-by-side buttons) and **Privat** (soft, centered card with a round logo and pill destination). First run seeds one layout per structure.
 - Live mobile preview and a separate preview page that disables navigation and the countdown.
 - Optional automatic opening attempt after 0–300 seconds, with a visitor cancellation checkbox. Blank means disabled.
 - Six UTM fields, optionally forwarding UTM supplied on the shared short link.
@@ -30,10 +32,20 @@ Open `http://localhost:8088/admin`. The port binds to localhost only. Configure 
 ## Create an Instagram DM link
 
 1. Enter `https://hoerbuch.warsowerk.de/` and optional short name `hoerbuch`.
-2. Customize the landing page and its two buttons.
-3. Set `utm_source=instagram`, `utm_medium=dm`, and a campaign if needed.
-4. Keep automatic opening disabled, or select a delay.
-5. Save, copy `https://your-domain/l/hoerbuch`, and send it in a DM.
+2. Pick a landing page layout from the dropdown, or keep “Eigenes Layout” and set the colors yourself.
+3. Customize the landing page and its two buttons.
+4. Set `utm_source=instagram`, `utm_medium=dm`, and a campaign if needed.
+5. Keep automatic opening disabled, or select a delay.
+6. Save, copy `https://your-domain/l/hoerbuch`, and send it in a DM.
+
+## Layouts
+
+Open **Landingpage-Layouts** in the sidebar. A layout stores a structure, five colors, and the button shape. Create as many as you need (for example “Business”, “Privat”, or per-campaign looks), copy an existing one, or delete ones you no longer use.
+
+- Selecting a layout in the editor switches the structure and loads its colors immediately; every color stays editable afterwards.
+- “Layout übernehmen” on an existing link loads the selected preset, but only saving persists it. Destination, alias, internal name, and tracking stay unchanged.
+- Links store their own structure and palette. Editing or deleting a layout therefore never changes links that have already been shared.
+- In **Vorlage für neue Links** you can pick the layout that new links start with.
 
 Existing destination parameters stay byte-identical when no UTM changes are requested. UTM merging preserves unrelated parameter spelling, order, duplicate keys, percent encoding, and fragments. Adding tracking to a signed URL can invalidate its signature.
 
@@ -76,6 +88,7 @@ SQLite keeps deployment small: use **one application replica on one host** with 
 | --- | --- |
 | `/` | GET redirects to private editor; legacy form POST still works. |
 | `/admin` | Private link editor and defaults. |
+| `/admin?view=layouts` | Manage landing page layouts: create, copy, edit, delete. |
 | `/admin/preview` | Authenticated, CSRF-protected POST preview; does not save. |
 | `/l/<slug>` | Public two-button landing, no admin session. |
 | `/go/<slug>` | Redirect to stored destination, recognized incoming UTM only. |

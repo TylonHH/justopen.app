@@ -25,6 +25,7 @@ $colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text
         <?php if (!$links): ?><p class="empty-state">Dein erster Link wartet.<br>Trage rechts eine Zieladresse ein.</p><?php endif; ?>
         <p id="search-empty" class="empty-state" hidden>Kein passender Link.</p>
     </nav>
+    <a class="defaults-link" href="/admin?view=layouts">Landingpage-Layouts <span aria-hidden="true">↗</span></a>
     <a class="defaults-link <?= $isDefaults ? 'selected' : '' ?>" href="/admin?view=defaults">Vorlage für neue Links <span aria-hidden="true">↗</span></a>
     <p class="sidebar-note">Eigene Links. Eigene Gestaltung.<br>Ohne Abo und ohne Klicklimit.</p>
 </aside>
@@ -32,13 +33,14 @@ $colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text
     <div class="editor-heading"><p class="eyebrow"><?= $isDefaults ? 'DEINE VORLAGE' : ($edit !== '' ? 'LINK BEARBEITEN' : 'NEUER LINK') ?></p><h1><?= $isDefaults ? 'Ein Stil für deinen Start.' : ($edit !== '' ? 'Mach den Link zu deinem.' : 'Ein Link. Zwei Möglichkeiten.') ?></h1><p><?= $isDefaults ? 'Diese Einstellungen gelten für neue Links. Bestehende Links behalten ihre Gestaltung.' : 'Ziel festlegen, Landingpage gestalten und in deiner DM teilen.' ?></p></div>
     <?php if ($error !== ''): ?><p class="alert error" role="alert"><?= jo_escape($error) ?></p><?php endif; ?>
     <?php if ($saved && $error === ''): ?><p class="alert success" role="status"><?= $isDefaults ? 'Vorlage gespeichert.' : 'Link gespeichert. Bereit zum Teilen.' ?></p><?php endif; ?>
-    <?php if ($applied && $error === ''): ?><p class="alert success" role="status">Vorlage übernommen. Vorschau prüfen und Änderungen speichern.</p><?php endif; ?>
+    <?php if ($applied !== '' && $error === ''): ?><p class="alert success" role="status"><?= $applied === 'layout' ? 'Layout übernommen. Vorschau prüfen und Änderungen speichern.' : 'Vorlage übernommen. Vorschau prüfen und Änderungen speichern.' ?></p><?php endif; ?>
     <?php if ($shortUrl !== ''): ?>
         <div class="share-box"><label for="share-url">Dein DM-Link</label><div class="share-row"><input id="share-url" readonly value="<?= jo_escape($shortUrl) ?>"><button type="button" class="button primary compact" id="copy-short">Kopieren</button><a class="button secondary compact" href="<?= jo_escape($shortUrl) ?>" target="_blank" rel="noopener noreferrer">Öffnen ↗</a></div><p id="share-feedback" role="status" aria-live="polite"></p></div>
     <?php endif; ?>
-    <form id="editor-form" method="post" action="/admin" data-unsaved="<?= $applied ? 'true' : 'false' ?>">
+    <form id="editor-form" method="post" action="/admin" data-unsaved="<?= $applied !== '' ? 'true' : 'false' ?>">
         <input type="hidden" name="csrf" value="<?= jo_escape($_SESSION['csrf']) ?>">
         <input type="hidden" name="original_slug" value="<?= jo_escape($edit) ?>">
+        <?php if ($isDefaults): ?><input type="hidden" name="view" value="defaults"><?php endif; ?>
         <?php if (!$isDefaults): ?>
         <fieldset><legend><span>01</span> Das Ziel</legend>
             <label for="url">Zieladresse · beliebiger HTTP-/HTTPS-Link</label><input id="url" name="url" type="url" maxlength="8192" value="<?= jo_escape($config['url']) ?>" placeholder="https://deine-domain.de/beliebige-seite" required>
@@ -48,6 +50,18 @@ $colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text
         <?php endif; ?>
         <fieldset><legend><span><?= $isDefaults ? '01' : '02' ?></span> Deine Landingpage</legend>
             <?php if (!$isDefaults && $edit !== ''): ?><button class="button secondary compact" name="action" value="apply_defaults">Vorlage anwenden</button><p class="field-note">Übernimmt Gestaltung, Button-Aktionen und Öffnungszeit aus der aktuellen Vorlage. Ziel, Kurzname, Linkname und Tracking bleiben erhalten. Erst Speichern aktualisiert den Link.</p><?php endif; ?>
+            <label for="layout_preset">Landingpage-Layout <small>Wählt Aufbau, Farben und Buttonform. Texte und Ziele bleiben unverändert.</small></label>
+            <div class="layout-row">
+                <select id="layout_preset" name="layout">
+                    <option value="">Eigenes Layout · Farben selbst wählen</option>
+                    <?php foreach ($layouts as $row): $item = array_replace(sl_layout_defaults(), json_decode($row['config'], true, 32, JSON_THROW_ON_ERROR)); $structure = SL_STRUCTURES[$item['structure']] ?? SL_STRUCTURES['card']; ?>
+                        <option value="<?= jo_escape($row['id']) ?>" data-structure="<?= jo_escape($item['structure']) ?>" data-background="<?= jo_escape($item['background']) ?>" data-surface="<?= jo_escape($item['surface']) ?>" data-text="<?= jo_escape($item['text']) ?>" data-accent="<?= jo_escape($item['accent']) ?>" data-accent_text="<?= jo_escape($item['accent_text']) ?>" data-shape="<?= jo_escape($item['shape']) ?>" <?= $config['layout'] === $row['id'] ? 'selected' : '' ?>><?= jo_escape($row['name']) ?> · <?= jo_escape($structure) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button class="button secondary compact" name="action" value="apply_layout">Layout übernehmen</button>
+            </div>
+            <input type="hidden" name="structure" id="structure" value="<?= jo_escape($config['structure']) ?>">
+            <p class="field-note">Der Aufbau wechselt sofort in der Vorschau. <a href="/admin?view=layouts">Layouts anlegen, kopieren oder löschen</a></p>
             <?php foreach (['brand', 'title'] as $key): ?><label for="<?= $key ?>"><?= $textFields[$key] ?></label><input id="<?= $key ?>" name="<?= $key ?>" maxlength="160" value="<?= jo_escape($config[$key]) ?>" required><?php endforeach; ?>
             <label for="logo_url">Logo-Adresse <small>Optional · HTTPS-Bild, wird vom Besucher geladen.</small></label><input id="logo_url" name="logo_url" type="url" maxlength="8192" value="<?= jo_escape($config['logo_url']) ?>" placeholder="https://deine-domain.de/logo.png">
             <div class="two-columns"><?php foreach (['primary_label', 'secondary_label'] as $key): ?><div><label for="<?= $key ?>"><?= $textFields[$key] ?></label><input id="<?= $key ?>" name="<?= $key ?>" maxlength="160" value="<?= jo_escape($config[$key]) ?>" required></div><?php endforeach; ?></div>
@@ -68,7 +82,7 @@ $colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text
 </main>
 <aside class="preview-column" aria-label="Live-Vorschau">
     <div class="preview-heading"><span class="eyebrow">LIVE-VORSCHAU</span><span class="badge">Mobil</span></div>
-    <div class="phone-preview" id="live-preview">
+    <div class="phone-preview lp-<?= jo_escape($config['structure']) ?>" id="live-preview">
         <div class="landing-card">
             <div class="brand"><img id="preview-logo" class="brand-logo" alt="" referrerpolicy="no-referrer" hidden><span id="preview-mark" class="brand-mark" aria-hidden="true">↗</span><span id="preview-brand"></span></div>
             <div class="destination"><span class="status-dot" aria-hidden="true"></span><span id="preview-host">deine-domain.de</span></div>

@@ -19,6 +19,8 @@
         const colors = {background:'--page',surface:'--surface',text:'--ink',accent:'--accent',accent_text:'--on-accent'};
         Object.keys(colors).forEach(name => preview.style.setProperty(colors[name], value(name)));
         preview.style.setProperty('--radius', value('shape') === 'square' ? '4px' : '18px');
+        const structure = value('structure');
+        preview.className = 'phone-preview lp-' + (['card', 'business', 'private'].includes(structure) ? structure : 'card');
         const logo = document.getElementById('preview-logo');
         const logoUrl = value('logo_url');
         let validLogo = false;
@@ -35,6 +37,18 @@
         const readable = contrast(value('text'), value('surface')) >= 4.5 && contrast(value('accent_text'), value('accent')) >= 4.5;
         document.getElementById('contrast-note').textContent = readable ? 'Textkontrast passt. Deine Farben sind lesbar.' : 'Kontrast zu gering. Bitte Text- oder Hintergrundfarben ändern (mindestens 4,5:1).';
     }
+    const layoutSelect = document.getElementById('layout_preset');
+    if (layoutSelect) layoutSelect.addEventListener('change', () => {
+        const option = layoutSelect.selectedOptions[0];
+        if (!option || !option.dataset.structure) return;
+        ['background', 'surface', 'text', 'accent', 'accent_text'].forEach(key => {
+            const input = document.getElementById(key);
+            if (input && option.dataset[key]) input.value = option.dataset[key];
+        });
+        const shape = document.getElementById('shape');
+        if (shape && option.dataset.shape) shape.value = option.dataset.shape;
+        document.getElementById('structure').value = option.dataset.structure;
+    });
     form.addEventListener('input', update);
     form.addEventListener('change', update);
     update();
