@@ -23,6 +23,8 @@
             if (colorPattern.test(hex)) preview.style.setProperty(colors[name], hex);
         });
         preview.style.setProperty('--radius', value('shape') === 'square' ? '4px' : '18px');
+        const structure = value('structure');
+        preview.className = 'phone-preview lp-' + (['card', 'business', 'private'].includes(structure) ? structure : 'card');
         const logo = document.getElementById('preview-logo');
         const logoUrl = value('logo_url');
         let validLogo = false;
@@ -47,6 +49,22 @@
         picker.addEventListener('input', syncPicker);
         picker.addEventListener('change', syncPicker);
         hex.addEventListener('input', () => { if (colorPattern.test(hex.value)) picker.value = hex.value; });
+    });
+    const layoutSelect = document.getElementById('layout_preset');
+    if (layoutSelect) layoutSelect.addEventListener('change', () => {
+        const option = layoutSelect.selectedOptions[0];
+        if (!option || !option.dataset.structure) return;
+        Object.keys(colors).forEach(key => {
+            const picker = document.getElementById(key);
+            const hex = field(key);
+            if (option.dataset[key]) {
+                picker.value = option.dataset[key];
+                hex.value = option.dataset[key];
+            }
+        });
+        const shape = document.getElementById('shape');
+        if (shape && option.dataset.shape) shape.value = option.dataset.shape;
+        document.getElementById('structure').value = option.dataset.structure;
     });
     form.addEventListener('input', update);
     form.addEventListener('change', update);

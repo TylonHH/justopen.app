@@ -74,6 +74,41 @@ check(sl_link('unknown') === null, 'Unknown link lookup.');
 $handoff = sl_handoff($config, ['utm_medium' => 'dm & text', 'url' => 'https://evil.test'], 'https://go.example.com');
 check($handoff === 'https://go.example.com/go/hoerbuch?utm_medium=dm%20%26%20text', 'Handoff accepts only UTM.');
 
+// Layout presets: reusable structure + palette, managed independently from links.
+$seeded = sl_layout_rows();
+check(count($seeded) === 3, 'First run seeds three layouts.');
+check(in_array('Business', array_column($seeded, 'name'), true) && in_array('Privat', array_column($seeded, 'name'), true), 'Seeded layouts cover business and private.');
+check(in_array(sl_layout($seeded[0]['id'])['structure'], array_keys(SL_STRUCTURES), true), 'Seeded layout has a known structure.');
+check(sl_layout('unknown') === null && sl_layout('../../etc/passwd') === null, 'Unknown layout ids are rejected.');
+$preset = ['name' => 'Kampagne', 'structure' => 'business', 'background' => '#eef1f6', 'surface' => '#ffffff',
+    'text' => '#0f1c2e', 'accent' => '#12365c', 'accent_text' => '#ffffff', 'shape' => 'square'];
+$layoutId = sl_layout_save(sl_layout_config($preset));
+check(sl_layout($layoutId)['name'] === 'Kampagne' && sl_layout($layoutId)['structure'] === 'business', 'Layout created.');
+sl_layout_save(sl_layout_config(array_replace($preset, ['name' => 'Kampagne 2', 'structure' => 'private'])), $layoutId);
+check(sl_layout($layoutId)['name'] === 'Kampagne 2' && sl_layout($layoutId)['structure'] === 'private', 'Layout updated.');
+rejects(static fn() => sl_layout_config(array_replace($preset, ['name' => ''])), 'Layout needs a name.');
+rejects(static fn() => sl_layout_config(array_replace($preset, ['structure' => 'hacker'])), 'Unknown structure rejected.');
+rejects(static fn() => sl_layout_config(array_replace($preset, ['accent' => 'red'])), 'Layout color validation.');
+rejects(static fn() => sl_layout_config(array_replace($preset, ['accent_text' => $preset['accent']])), 'Layout contrast validation.');
+
+$withLayout = sl_config(array_replace($f, ['structure' => 'private', 'layout' => $layoutId]));
+check($withLayout['structure'] === 'private' && $withLayout['layout'] === $layoutId, 'Link stores structure and layout reference.');
+rejects(static fn() => sl_config(array_replace($f, ['structure' => 'nope'])), 'Link structure validated.');
+rejects(static fn() => sl_config(array_replace($f, ['layout' => '../x'])), 'Link layout reference validated.');
+ob_start(); sl_render('landing', ['config' => $withLayout, 'target' => sl_target($withLayout), 'handoff' => '', 'preview' => false]); $privateHtml = ob_get_clean();
+check(strpos($privateHtml, 'body class="landing lp-private"') !== false, 'Chosen structure renders on the landing page.');
+check(strpos($privateHtml, 'id="open-external"') !== false && substr_count($privateHtml, 'id="secondary"') === 1, 'Structure keeps both actions.');
+sl_db()->prepare('INSERT INTO links(slug,config,created_at,updated_at) VALUES(?,?,?,?)')
+    ->execute(['legacy-link', json_encode(['url' => 'https://example.com/', 'slug' => 'legacy-link']), '2026-01-01', '2026-01-01']);
+check(sl_link('legacy-link')['structure'] === 'card', 'Links without a stored structure fall back to card.');
+$settings = sl_settings(); $settings['layout'] = $layoutId;
+sl_db()->prepare('INSERT INTO settings(id,config) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET config=excluded.config')
+    ->execute([json_encode($settings, JSON_THROW_ON_ERROR)]);
+sl_layout_delete($layoutId);
+check(sl_layout($layoutId) === null, 'Layout deleted.');
+check(sl_settings()['layout'] === '', 'Deleting the default layout clears the preset reference.');
+check(count(sl_layout_rows()) === 3, 'Only the requested layout is deleted.');
+
 sl_session(['HTTP_HOST' => 'localhost:8088']);
 check(!sl_authenticated(), 'Anonymous session is unauthenticated.');
 check(!sl_csrf(['csrf' => 'wrong']) && !sl_csrf(['csrf' => []]), 'CSRF mismatch rejected.');
