@@ -2,9 +2,11 @@
     'use strict';
     const form = document.getElementById('editor-form');
     const preview = document.getElementById('live-preview');
-    const field = name => form.elements.namedItem(name);
+    const field = name => form.querySelector('[name="' + name + '"]');
     const value = name => field(name) ? field(name).value : '';
     const mapping = {brand:'preview-brand', primary_label:'preview-primary', secondary_label:'preview-secondary'};
+    const colors = {background:'--page',surface:'--surface',text:'--ink',accent:'--accent',accent_text:'--on-accent'};
+    const colorPattern = /^#[a-f\d]{6}$/i;
 
     function luminance(hex) {
         const c = hex.match(/[a-f\d]{2}/gi).map(part => parseInt(part, 16) / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
@@ -16,8 +18,10 @@
     }
     function update() {
         Object.keys(mapping).forEach(name => document.getElementById(mapping[name]).textContent = value(name));
-        const colors = {background:'--page',surface:'--surface',text:'--ink',accent:'--accent',accent_text:'--on-accent'};
-        Object.keys(colors).forEach(name => preview.style.setProperty(colors[name], value(name)));
+        Object.keys(colors).forEach(name => {
+            const hex = value(name);
+            if (colorPattern.test(hex)) preview.style.setProperty(colors[name], hex);
+        });
         preview.style.setProperty('--radius', value('shape') === 'square' ? '4px' : '18px');
         const logo = document.getElementById('preview-logo');
         const logoUrl = value('logo_url');
@@ -32,9 +36,18 @@
         const custom = value('secondary_action') === 'custom';
         document.getElementById('secondary-url-field').hidden = !custom;
         field('secondary_url').required = custom;
-        const readable = contrast(value('text'), value('surface')) >= 4.5 && contrast(value('accent_text'), value('accent')) >= 4.5;
-        document.getElementById('contrast-note').textContent = readable ? 'Textkontrast passt. Deine Farben sind lesbar.' : 'Kontrast zu gering. Bitte Text- oder Hintergrundfarben ändern (mindestens 4,5:1).';
+        const validColors = Object.keys(colors).every(name => colorPattern.test(value(name)));
+        const readable = validColors && contrast(value('text'), value('surface')) >= 4.5 && contrast(value('accent_text'), value('accent')) >= 4.5;
+        document.getElementById('contrast-note').textContent = !validColors ? 'Bitte für jede Farbe einen sechsstelligen Hexcode eingeben, zum Beispiel #176b52.' : readable ? 'Textkontrast passt. Deine Farben sind lesbar.' : 'Kontrast zu gering. Bitte Text- oder Hintergrundfarben ändern (mindestens 4,5:1).';
     }
+    Object.keys(colors).forEach(name => {
+        const picker = document.getElementById(name);
+        const hex = field(name);
+        const syncPicker = () => { hex.value = picker.value; };
+        picker.addEventListener('input', syncPicker);
+        picker.addEventListener('change', syncPicker);
+        hex.addEventListener('input', () => { if (colorPattern.test(hex.value)) picker.value = hex.value; });
+    });
     form.addEventListener('input', update);
     form.addEventListener('change', update);
     update();
@@ -45,6 +58,23 @@
         links.forEach(link => { link.hidden = !link.textContent.toLocaleLowerCase('de').includes(search); });
         document.getElementById('search-empty').hidden = !search || links.some(link => !link.hidden);
     });
+    const colorFeedback = document.getElementById('color-feedback');
+    document.querySelectorAll('[data-copy-color]').forEach(button => button.addEventListener('click', async () => {
+        const input = field(button.dataset.copyColor);
+        if (!colorPattern.test(input.value)) {
+            input.focus();
+            colorFeedback.textContent = 'Bitte zuerst einen gültigen Hexcode eingeben.';
+            return;
+        }
+        try {
+            if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+            await navigator.clipboard.writeText(input.value);
+            colorFeedback.textContent = input.value + ' kopiert.';
+        } catch (_) {
+            input.focus(); input.select();
+            colorFeedback.textContent = 'Bitte den ausgewählten Hexcode manuell kopieren.';
+        }
+    }));
     const copy = document.getElementById('copy-short');
     if (copy) copy.addEventListener('click', async () => {
         const input = document.getElementById('share-url');
