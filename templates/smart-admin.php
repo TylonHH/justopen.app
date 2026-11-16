@@ -46,6 +46,7 @@ $isException = $config['brand_id'] !== '' && !empty($config['override']);
     <div class="editor-heading"><p class="eyebrow"><?= $edit !== '' ? 'LINK BEARBEITEN' : 'NEUER LINK' ?></p><h1><?= $edit !== '' ? 'Mach den Link zu deinem.' : 'Ein Link. Zwei Möglichkeiten.' ?></h1><p><?= $edit !== '' ? 'Marke wählen, Ziel festlegen, in deiner DM teilen.' : 'Marke wählen, Ziel eintragen, fertig.' ?></p></div>
     <?php if ($error !== ''): ?><p class="alert error" role="alert"><?= jo_escape($error) ?></p><?php endif; ?>
     <?php if ($saved && $error === ''): ?><p class="alert success" role="status">Link gespeichert. Bereit zum Teilen.</p><?php endif; ?>
+    <?php if (!empty($deleted) && $error === ''): ?><p class="alert success" role="status">Link gelöscht. Der Kurzlink ist nicht mehr erreichbar.</p><?php endif; ?>
     <?php if ($applied === 'brand' && $error === ''): ?><p class="alert success" role="status">Marke übernommen. Vorschau prüfen und Änderungen speichern.</p><?php endif; ?>
     <?php if ($shortUrl !== ''): ?>
         <div class="share-box"><label for="share-url">Dein DM-Link</label><div class="share-row"><input id="share-url" readonly value="<?= jo_escape($shortUrl) ?>"><button type="button" class="button primary compact" id="copy-short">Kopieren</button><a class="button secondary compact" href="<?= jo_escape($shortUrl) ?>" target="_blank" rel="noopener noreferrer">Öffnen ↗</a></div><p id="share-feedback" role="status" aria-live="polite"></p></div>
@@ -83,6 +84,12 @@ $isException = $config['brand_id'] !== '' && !empty($config['override']);
         </fieldset>
         <div class="save-bar"><button class="button primary" name="action" value="save"><?= $edit !== '' ? 'Änderungen speichern' : 'Link erstellen' ?><span aria-hidden="true">↗</span></button><button class="button secondary" name="action" value="preview" formaction="/admin/preview" formtarget="_blank">Vorschau öffnen</button></div>
     </form>
+    <?php if ($edit !== ''): ?>
+    <div class="layout-actions">
+        <form method="post" action="/admin"><input type="hidden" name="csrf" value="<?= jo_escape($_SESSION['csrf']) ?>"><input type="hidden" name="original_slug" value="<?= jo_escape($edit) ?>"><button class="button secondary compact danger" name="action" value="delete" data-confirm="Link „<?= jo_escape($config['title']) ?>“ (<?= jo_escape($origin . '/l/' . $edit) ?>) wirklich löschen? Bereits geteilte Links funktionieren danach nicht mehr.">Link löschen</button></form>
+    </div>
+    <p class="field-note">Löschen ist endgültig. Wenn du einen Link nur pausieren willst, entferne oben „Link aktiv“.</p>
+    <?php endif; ?>
 </main>
 <aside class="preview-column" aria-label="Live-Vorschau">
     <div class="preview-heading"><span class="eyebrow">LIVE-VORSCHAU</span><span class="badge">Mobil</span></div>

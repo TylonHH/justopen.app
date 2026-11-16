@@ -244,6 +244,12 @@ fs.mkdirSync(artifacts, {recursive:true});
         await page.setViewportSize({width:390,height:844});
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'Admin has no mobile overflow.');
         await page.screenshot({path:path.join(artifacts,'studio-mobile.png'),fullPage:true});
+        // Delete the link: gone from the list, short URL returns 404.
+        page.once('dialog', dialog => dialog.accept());
+        await page.getByRole('button', {name:'Link löschen'}).click();
+        await page.waitForURL('**/admin?deleted=1');
+        assert.equal((await fetch(base + '/l/' + slug)).status, 404);
+        assert.equal(await page.locator('.link-item[href*="edit=' + slug + '"]').count(), 0, 'Deleted link is gone from the list.');
         assert.equal(errors.length,0,errors.join('\n'));
         await page.getByRole('button', {name:'Abmelden'}).click();
         await page.waitForURL(base + '/admin');
@@ -251,7 +257,7 @@ fs.mkdirSync(artifacts, {recursive:true});
         const afterLogout = await context.request.post(base + '/admin',{form:{action:'save',csrf}});
         assert.equal(afterLogout.status(),403);
         await context.close();
-        console.log('HTTP and browser flow passed: auth, CSRF, privacy, hex color controls, create/edit, preview, UTM, mobile layouts, iOS/Android hrefs, no-JS, countdown, cancellation, deactivate/reactivate, brand create/apply/copy/delete, live brand inheritance, per-link exceptions, logout.');
+        console.log('HTTP and browser flow passed: auth, CSRF, privacy, hex color controls, create/edit, preview, UTM, mobile layouts, iOS/Android hrefs, no-JS, countdown, cancellation, deactivate/reactivate, link deletion, brand create/apply/copy/delete, live brand inheritance, per-link exceptions, logout.');
         console.log('Artifacts: ' + artifacts);
     } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode=1; });

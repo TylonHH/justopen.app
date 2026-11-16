@@ -19,6 +19,7 @@ Self-hosted website links with a customizable two-button landing page. Create a 
 - Per-link exceptions: any change a link makes to its brand is kept for that link only. “Marke wieder übernehmen” clears the exception.
 - Private administration, CSRF protection, session expiry, password rotation invalidation, and persistent login rate limiting.
 - Deactivate/reactivate links without deleting their configuration. Disabled landing and handoff URLs return HTTP 410.
+- Delete a link permanently from its editor, with a confirmation. Its short URL returns HTTP 404 afterwards.
 - Original social app deep links and the Amazon endpoint remain available.
 - Stateless Gmail, WhatsApp, Telegram and Google Maps links at `/apps`, with native-app buttons and separate web fallbacks. No database entry per email is needed.
 

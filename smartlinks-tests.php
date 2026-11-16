@@ -71,6 +71,10 @@ rejects(static fn() => sl_save($validated, false), 'Duplicate slug does not over
 $validated['active'] = false; sl_save($validated, true);
 check(sl_link('hoerbuch')['active'] === false, 'Deactivate persists.');
 check(sl_link('unknown') === null, 'Unknown link lookup.');
+$doomed = $validated; $doomed['slug'] = 'delete-me'; $doomed['active'] = true; sl_save($doomed, false);
+check(sl_delete_link('delete-me'), 'Link deletion.');
+check(sl_link('delete-me') === null, 'Deleted link is gone.');
+check(!sl_delete_link('delete-me'), 'Deleting a missing link reports no row.');
 $handoff = sl_handoff($config, ['utm_medium' => 'dm & text', 'url' => 'https://evil.test'], 'https://go.example.com');
 check($handoff === 'https://go.example.com/go/hoerbuch?utm_medium=dm%20%26%20text', 'Handoff accepts only UTM.');
 

@@ -271,6 +271,13 @@ function sl_save(array $config, bool $update): void
     }
 }
 
+function sl_delete_link(string $slug): bool
+{
+    $query = sl_db()->prepare('DELETE FROM links WHERE slug=?');
+    $query->execute([$slug]);
+    return $query->rowCount() > 0;
+}
+
 function sl_brand_save(array $brand, string $id = ''): string
 {
     $config = json_encode(array_intersect_key($brand, sl_brand_defaults()), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
@@ -614,6 +621,13 @@ function sl_dispatch(array $server, array $get, array $post): bool
                 sl_redirect('/admin'); return true;
             }
             $edit = is_string($post['original_slug'] ?? null) ? $post['original_slug'] : '';
+            if ($action === 'delete') {
+                if ($edit === '' || sl_link($edit) === null) {
+                    sl_render('message', ['title' => 'Link nicht gefunden', 'message' => 'Bitte einen vorhandenen Link auswählen.'], 404); return true;
+                }
+                sl_delete_link($edit);
+                sl_redirect('/admin?deleted=1'); return true;
+            }
             try {
                 if (!in_array($action, ['save', 'preview', 'apply_brand'], true)) throw new InvalidArgumentException('Unbekannte Aktion.');
                 if ($action === 'apply_brand') {
@@ -652,7 +666,7 @@ function sl_dispatch(array $server, array $get, array $post): bool
         }
         $links = sl_db()->query('SELECT slug,config,updated_at FROM links ORDER BY updated_at DESC, slug')->fetchAll();
         sl_render('admin', compact('config', 'brands', 'links', 'edit', 'error', 'origin', 'applied')
-            + ['saved' => isset($get['saved']), 'defaultBrandId' => (string) ($settings['brand_id'] ?? '')], $status);
+            + ['saved' => isset($get['saved']), 'deleted' => isset($get['deleted']), 'defaultBrandId' => (string) ($settings['brand_id'] ?? '')], $status);
     } catch (Throwable $e) {
         error_log('justopen: ' . $e->getMessage());
         sl_render('message', ['title' => 'Kurz nicht erreichbar', 'message' => 'Bitte später erneut versuchen. Die Serverkonfiguration muss geprüft werden.'], 503);

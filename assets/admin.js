@@ -107,6 +107,9 @@
             colorFeedback.textContent = 'Bitte den ausgewählten Hexcode manuell kopieren.';
         }
     }));
+    document.querySelectorAll('[data-confirm]').forEach(button => button.addEventListener('click', event => {
+        if (!confirm(button.dataset.confirm)) event.preventDefault();
+    }));
     const copy = document.getElementById('copy-short');
     if (copy) copy.addEventListener('click', async () => {
         const input = document.getElementById('share-url');
