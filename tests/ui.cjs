@@ -251,7 +251,7 @@ fs.mkdirSync(artifacts, {recursive:true});
         const afterLogout = await context.request.post(base + '/admin',{form:{action:'save',csrf}});
         assert.equal(afterLogout.status(),403);
         await context.close();
-        console.log('HTTP and browser flow passed: auth, CSRF, privacy, create/edit, preview, UTM, mobile layouts, iOS/Android hrefs, no-JS, countdown, cancellation, deactivate/reactivate, brand create/apply/copy/delete, live brand inheritance, per-link exceptions, logout.');
+        console.log('HTTP and browser flow passed: auth, CSRF, privacy, hex color controls, create/edit, preview, UTM, mobile layouts, iOS/Android hrefs, no-JS, countdown, cancellation, deactivate/reactivate, brand create/apply/copy/delete, live brand inheritance, per-link exceptions, logout.');
         console.log('Artifacts: ' + artifacts);
     } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode=1; });

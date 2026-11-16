@@ -12,6 +12,7 @@ Self-hosted website links with a customizable two-button landing page. Create a 
 - Creating a link is then just: pick a brand, enter the destination — optionally adjust tracking. Brand name, logo, texts and colors are inherited.
 - Links follow their brand live: changing a brand updates all links of that brand. A deliberate per-link change becomes an exception and is never overwritten; “Marke wieder übernehmen” removes the exception.
 - Three built-in structures: **Karte** (classic centered card), **Business** (wide, left-aligned sheet with accent rule and side-by-side buttons) and **Privat** (soft, centered card with a round logo and pill destination). First run seeds one brand per structure.
+- Every color can be picked or typed as a hex code, with a copy button and live contrast feedback.
 - Live mobile preview and a separate preview page that disables navigation and the countdown.
 - Optional automatic opening attempt after 0–300 seconds, with a visitor cancellation checkbox. Blank means disabled.
 - Six UTM fields, optionally forwarding UTM supplied on the shared short link.
