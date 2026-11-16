@@ -1,8 +1,22 @@
 <?php
-$isDefaults = $mode === 'defaults';
 $shortUrl = $edit !== '' ? $origin . '/l/' . $edit : '';
-$textFields = ['brand' => 'Marke', 'title' => 'Linkname · nur zur Verwaltung', 'primary_label' => 'Button 1 · Extern öffnen', 'secondary_label' => 'Button 2 · Text'];
-$colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text' => 'Text', 'accent' => 'Button 1', 'accent_text' => 'Button-Text'];
+$brandNames = [];
+$presets = [];
+foreach ($brands as $row) {
+    $item = array_replace(sl_brand_defaults(), json_decode($row['config'], true, 32, JSON_THROW_ON_ERROR));
+    $brandNames[$row['id']] = $row['name'];
+    $presets[$row['id']] = [
+        'brand' => $item['brand'], 'logo_url' => $item['logo_url'],
+        'primary_label' => $item['primary_label'], 'secondary_label' => $item['secondary_label'],
+        'secondary_action' => $item['secondary_action'], 'secondary_url' => $item['secondary_url'],
+        'structure' => $item['structure'], 'background' => $item['background'], 'surface' => $item['surface'],
+        'text' => $item['text'], 'accent' => $item['accent'], 'accent_text' => $item['accent_text'],
+        'shape' => $item['shape'], 'delay' => $item['delay'],
+        'utm' => $item['utm'], 'forward_utm' => (bool) $item['forward_utm'],
+    ];
+}
+$brandName = $brandNames[$config['brand_id']] ?? '';
+$isException = $config['brand_id'] !== '' && !empty($config['override']);
 ?>
 <!doctype html>
 <html lang="de">
@@ -19,78 +33,55 @@ $colorFields = ['background' => 'Seitenhintergrund', 'surface' => 'Karte', 'text
     <nav aria-label="Gespeicherte Links" class="link-list">
         <?php foreach ($links as $row): $item = array_replace(sl_defaults(), json_decode($row['config'], true, 32, JSON_THROW_ON_ERROR)); ?>
             <a class="link-item <?= $row['slug'] === $edit ? 'selected' : '' ?>" href="/admin?edit=<?= rawurlencode($row['slug']) ?>" <?= $row['slug'] === $edit ? 'aria-current="page"' : '' ?>>
-                <strong><?= jo_escape($item['title']) ?></strong><span>/l/<?= jo_escape($row['slug']) ?></span><small><?= $item['active'] ? 'Aktiv' : 'Deaktiviert' ?></small>
+                <strong><?= jo_escape($item['title']) ?></strong><span>/l/<?= jo_escape($row['slug']) ?></span><small><?= $item['active'] ? 'Aktiv' : 'Deaktiviert' ?><?= isset($brandNames[$item['brand_id']]) ? ' · ' . jo_escape($brandNames[$item['brand_id']]) : '' ?></small>
             </a>
         <?php endforeach; ?>
         <?php if (!$links): ?><p class="empty-state">Dein erster Link wartet.<br>Trage rechts eine Zieladresse ein.</p><?php endif; ?>
         <p id="search-empty" class="empty-state" hidden>Kein passender Link.</p>
     </nav>
-    <a class="defaults-link" href="/admin?view=layouts">Landingpage-Layouts <span aria-hidden="true">↗</span></a>
-    <a class="defaults-link <?= $isDefaults ? 'selected' : '' ?>" href="/admin?view=defaults">Vorlage für neue Links <span aria-hidden="true">↗</span></a>
-    <a class="defaults-link" href="/apps">App-Links · Gmail, WhatsApp & mehr <span aria-hidden="true">↗</span></a>
-    <p class="sidebar-note">Eigene Links. Eigene Gestaltung.<br>Ohne Abo und ohne Klicklimit.</p>
+    <a class="defaults-link" href="/admin?view=brands">Marken &amp; Landingpages <span aria-hidden="true">↗</span></a>
+    <p class="sidebar-note">Marke einmal pflegen.<br>Pro Link nur noch das Ziel.</p>
 </aside>
 <main class="editor">
-    <div class="editor-heading"><p class="eyebrow"><?= $isDefaults ? 'DEINE VORLAGE' : ($edit !== '' ? 'LINK BEARBEITEN' : 'NEUER LINK') ?></p><h1><?= $isDefaults ? 'Ein Stil für deinen Start.' : ($edit !== '' ? 'Mach den Link zu deinem.' : 'Ein Link. Zwei Möglichkeiten.') ?></h1><p><?= $isDefaults ? 'Diese Einstellungen gelten für neue Links. Bestehende Links behalten ihre Gestaltung.' : 'Ziel festlegen, Landingpage gestalten und in deiner DM teilen.' ?></p></div>
+    <div class="editor-heading"><p class="eyebrow"><?= $edit !== '' ? 'LINK BEARBEITEN' : 'NEUER LINK' ?></p><h1><?= $edit !== '' ? 'Mach den Link zu deinem.' : 'Ein Link. Zwei Möglichkeiten.' ?></h1><p><?= $edit !== '' ? 'Marke wählen, Ziel festlegen, in deiner DM teilen.' : 'Marke wählen, Ziel eintragen, fertig.' ?></p></div>
     <?php if ($error !== ''): ?><p class="alert error" role="alert"><?= jo_escape($error) ?></p><?php endif; ?>
-    <?php if ($saved && $error === ''): ?><p class="alert success" role="status"><?= $isDefaults ? 'Vorlage gespeichert.' : 'Link gespeichert. Bereit zum Teilen.' ?></p><?php endif; ?>
-    <?php if ($applied !== '' && $error === ''): ?><p class="alert success" role="status"><?= $applied === 'layout' ? 'Layout übernommen. Vorschau prüfen und Änderungen speichern.' : 'Vorlage übernommen. Vorschau prüfen und Änderungen speichern.' ?></p><?php endif; ?>
+    <?php if ($saved && $error === ''): ?><p class="alert success" role="status">Link gespeichert. Bereit zum Teilen.</p><?php endif; ?>
+    <?php if ($applied === 'brand' && $error === ''): ?><p class="alert success" role="status">Marke übernommen. Vorschau prüfen und Änderungen speichern.</p><?php endif; ?>
     <?php if ($shortUrl !== ''): ?>
         <div class="share-box"><label for="share-url">Dein DM-Link</label><div class="share-row"><input id="share-url" readonly value="<?= jo_escape($shortUrl) ?>"><button type="button" class="button primary compact" id="copy-short">Kopieren</button><a class="button secondary compact" href="<?= jo_escape($shortUrl) ?>" target="_blank" rel="noopener noreferrer">Öffnen ↗</a></div><p id="share-feedback" role="status" aria-live="polite"></p></div>
     <?php endif; ?>
     <form id="editor-form" method="post" action="/admin" data-unsaved="<?= $applied !== '' ? 'true' : 'false' ?>">
         <input type="hidden" name="csrf" value="<?= jo_escape($_SESSION['csrf']) ?>">
         <input type="hidden" name="original_slug" value="<?= jo_escape($edit) ?>">
-        <?php if ($isDefaults): ?><input type="hidden" name="view" value="defaults"><?php endif; ?>
-        <?php if (!$isDefaults): ?>
         <fieldset><legend><span>01</span> Das Ziel</legend>
             <label for="url">Zieladresse · beliebiger HTTP-/HTTPS-Link</label><input id="url" name="url" type="url" maxlength="8192" value="<?= jo_escape($config['url']) ?>" placeholder="https://deine-domain.de/beliebige-seite" required>
+            <label for="title">Linkname <small>Nur zur Verwaltung · erscheint nicht auf der Landingpage.</small></label><input id="title" name="title" maxlength="160" value="<?= jo_escape($config['title']) ?>" required>
             <label for="slug">Kurzname <small><?= $edit !== '' ? 'Bleibt unverändert, damit geteilte Links gültig bleiben.' : 'Optional · wird sonst automatisch erzeugt.' ?></small></label><div class="slug-row"><span>/l/</span><input id="slug" name="slug" maxlength="64" pattern="[a-z0-9][a-z0-9_\-]{2,63}" value="<?= jo_escape($config['slug']) ?>" placeholder="hoerbuch" <?= $edit !== '' ? 'readonly' : '' ?>></div>
             <label class="check"><input name="active" type="checkbox" <?= $config['active'] ? 'checked' : '' ?>> Link aktiv</label>
         </fieldset>
-        <?php endif; ?>
-        <fieldset><legend><span><?= $isDefaults ? '01' : '02' ?></span> Deine Landingpage</legend>
-            <?php if (!$isDefaults && $edit !== ''): ?><button class="button secondary compact" name="action" value="apply_defaults">Vorlage anwenden</button><p class="field-note">Übernimmt Gestaltung, Button-Aktionen und Öffnungszeit aus der aktuellen Vorlage. Ziel, Kurzname, Linkname und Tracking bleiben erhalten. Erst Speichern aktualisiert den Link.</p><?php endif; ?>
-            <label for="layout_preset">Landingpage-Layout <small>Wählt Aufbau, Farben und Buttonform. Texte und Ziele bleiben unverändert.</small></label>
+        <fieldset><legend><span>02</span> Marke &amp; Landingpage</legend>
+            <label for="brand_preset">Marke <small>Liefert Markenname, Logo, Texte, Aufbau, Farben und Buttons.</small></label>
             <div class="layout-row">
-                <select id="layout_preset" name="layout">
-                    <option value="">Eigenes Layout · Farben selbst wählen</option>
-                    <?php foreach ($layouts as $row): $item = array_replace(sl_layout_defaults(), json_decode($row['config'], true, 32, JSON_THROW_ON_ERROR)); $structure = SL_STRUCTURES[$item['structure']] ?? SL_STRUCTURES['card']; ?>
-                        <option value="<?= jo_escape($row['id']) ?>" data-structure="<?= jo_escape($item['structure']) ?>" data-background="<?= jo_escape($item['background']) ?>" data-surface="<?= jo_escape($item['surface']) ?>" data-text="<?= jo_escape($item['text']) ?>" data-accent="<?= jo_escape($item['accent']) ?>" data-accent_text="<?= jo_escape($item['accent_text']) ?>" data-shape="<?= jo_escape($item['shape']) ?>" <?= $config['layout'] === $row['id'] ? 'selected' : '' ?>><?= jo_escape($row['name']) ?> · <?= jo_escape($structure) ?></option>
+                <select id="brand_preset" name="brand_id" data-presets="<?= jo_escape(json_encode($presets, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)) ?>" data-apply-utm="<?= $edit === '' ? 'true' : 'false' ?>">
+                    <option value="">Ohne Marke · eigene Gestaltung</option>
+                    <?php foreach ($brands as $row): ?>
+                        <option value="<?= jo_escape($row['id']) ?>" <?= $config['brand_id'] === $row['id'] ? 'selected' : '' ?>><?= jo_escape($row['name']) ?><?= $row['id'] === $defaultBrandId ? ' · Standard' : '' ?></option>
                     <?php endforeach; ?>
                 </select>
-                <button class="button secondary compact" name="action" value="apply_layout">Layout übernehmen</button>
+                <button class="button secondary compact" name="action" value="apply_brand"><?= $isException ? 'Marke wieder übernehmen' : 'Marke anwenden' ?></button>
             </div>
             <input type="hidden" name="structure" id="structure" value="<?= jo_escape($config['structure']) ?>">
-            <p class="field-note">Der Aufbau wechselt sofort in der Vorschau. <a href="/admin?view=layouts">Layouts anlegen, kopieren oder löschen</a></p>
-            <?php foreach (['brand', 'title'] as $key): ?><label for="<?= $key ?>"><?= $textFields[$key] ?></label><input id="<?= $key ?>" name="<?= $key ?>" maxlength="160" value="<?= jo_escape($config[$key]) ?>" required><?php endforeach; ?>
-            <label for="logo_url">Logo-Adresse <small>Optional · HTTPS-Bild, wird vom Besucher geladen.</small></label><input id="logo_url" name="logo_url" type="url" maxlength="8192" value="<?= jo_escape($config['logo_url']) ?>" placeholder="https://deine-domain.de/logo.png">
-            <div class="two-columns"><?php foreach (['primary_label', 'secondary_label'] as $key): ?><div><label for="<?= $key ?>"><?= $textFields[$key] ?></label><input id="<?= $key ?>" name="<?= $key ?>" maxlength="160" value="<?= jo_escape($config[$key]) ?>" required></div><?php endforeach; ?></div>
-            <label for="secondary_action">Button 2 · Aktion</label><select id="secondary_action" name="secondary_action"><?php foreach (['current' => 'Ziel im aktuellen Browser öffnen', 'copy' => 'Zieladresse kopieren', 'custom' => 'Andere Adresse öffnen'] as $value => $label): ?><option value="<?= $value ?>" <?= $config['secondary_action'] === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select>
-            <div id="secondary-url-field"><label for="secondary_url">Button 2 · Andere Zieladresse</label><input id="secondary_url" name="secondary_url" type="url" maxlength="8192" value="<?= jo_escape($config['secondary_url']) ?>" placeholder="https://deine-domain.de/"></div>
-            <div class="colors">
-                <?php foreach ($colorFields as $key => $label): $color = preg_match('/^#[a-fA-F0-9]{6}$/D', (string) $config[$key]) ? $config[$key] : sl_defaults()[$key]; ?>
-                    <div class="color-field">
-                        <label for="<?= $key ?>"><?= $label ?></label>
-                        <div class="color-inputs">
-                            <input id="<?= $key ?>" type="color" value="<?= jo_escape($color) ?>" aria-label="<?= $label ?> auswählen">
-                            <input id="<?= $key ?>-hex" class="hex-input" name="<?= $key ?>" type="text" value="<?= jo_escape($color) ?>" maxlength="7" pattern="#[a-fA-F0-9]{6}" required spellcheck="false" autocomplete="off" aria-label="<?= $label ?> · Hexcode" aria-describedby="contrast-note">
-                            <button class="color-copy" type="button" data-copy-color="<?= $key ?>" title="Hexcode kopieren" aria-label="<?= $label ?> · Hexcode kopieren"><svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" focusable="false"><rect x="6.5" y="6.5" width="10" height="10" rx="2"></rect><path d="M13.5 6.5v-2a1 1 0 0 0-1-1h-8a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"></path></svg></button>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
-            </div>
-            <p class="field-note" id="color-feedback" role="status" aria-live="polite"></p>
-            <label for="shape">Buttonform</label><select id="shape" name="shape"><option value="rounded" <?= $config['shape'] === 'rounded' ? 'selected' : '' ?>>Abgerundet</option><option value="square" <?= $config['shape'] === 'square' ? 'selected' : '' ?>>Eckig</option></select>
-            <p class="field-note" id="contrast-note">Farben werden beim Speichern auf lesbaren Kontrast geprüft.</p>
+            <p class="field-note" id="brand-status"><?php if ($brandName !== ''): ?><?= $isException ? 'Dieser Link hat eigene Anpassungen und folgt der Marke „' . jo_escape($brandName) . '“ nicht mehr.' : 'Folgt der Marke „' . jo_escape($brandName) . '“. Änderungen hier machen den Link zur Ausnahme.' ?><?php else: ?>Ohne Marke. Wähle oben eine Marke, um deren Gestaltung zu übernehmen.<?php endif; ?> <a href="/admin?view=brands">Marken verwalten</a></p>
+            <details class="presentation-details" <?= ($isException || $config['brand_id'] === '') ? 'open' : '' ?>>
+                <summary>Gestaltung anpassen <span>· macht diesen Link zur Ausnahme</span></summary>
+                <?php require __DIR__ . '/partials/presentation.php'; ?>
+            </details>
         </fieldset>
-        <fieldset><legend><span><?= $isDefaults ? '02' : '03' ?></span> Öffnen & Tracking</legend>
-            <label for="delay">Automatisches Öffnen nach Sekunden</label><input id="delay" name="delay" type="number" min="0" max="300" step="1" value="<?= jo_escape($config['delay']) ?>" placeholder="Ausgeschaltet">
-            <p class="field-note">Leer = nur per Button. 0 = sofort versuchen. Apps können automatisches Öffnen blockieren; der Button bleibt verfügbar.</p>
-            <details class="utm-details" <?= array_filter($config['utm']) ? 'open' : '' ?>><summary>UTM-Parameter hinzufügen</summary><p class="field-note">Leere Felder behalten vorhandene Parameter der Zieladresse. Eingetragene Werte ersetzen gleichnamige UTM-Parameter.</p><div class="two-columns"><?php foreach (SL_UTM as $key): ?><div><label for="<?= $key ?>"><?= $key ?></label><input id="<?= $key ?>" name="<?= $key ?>" maxlength="500" value="<?= jo_escape($config['utm'][$key] ?? '') ?>" placeholder="<?= $key === 'utm_source' ? 'instagram' : ($key === 'utm_medium' ? 'dm' : '') ?>"></div><?php endforeach; ?></div></details>
+        <fieldset><legend><span>03</span> Tracking</legend>
+            <details class="utm-details" <?= array_filter($config['utm']) ? 'open' : '' ?>><summary>UTM-Parameter hinzufügen</summary><p class="field-note">Leere Felder behalten vorhandene Parameter der Zieladresse. Eingetragene Werte ersetzen gleichnamige UTM-Parameter. Tracking bleibt pro Link, auch wenn die Marke Vorgaben liefert.</p><div class="two-columns"><?php foreach (SL_UTM as $key): ?><div><label for="<?= $key ?>"><?= $key ?></label><input id="<?= $key ?>" name="<?= $key ?>" maxlength="500" value="<?= jo_escape($config['utm'][$key] ?? '') ?>" placeholder="<?= $key === 'utm_source' ? 'instagram' : ($key === 'utm_medium' ? 'dm' : '') ?>"></div><?php endforeach; ?></div></details>
             <label class="check"><input name="forward_utm" type="checkbox" <?= $config['forward_utm'] ? 'checked' : '' ?>> UTM vom geteilten Kurzlink weitergeben</label><p class="field-note">Gespeicherte UTM-Werte haben Vorrang. Andere Parameter der Zieladresse bleiben erhalten. Änderungen an signierten URLs können deren Signatur ungültig machen.</p>
         </fieldset>
-        <div class="save-bar"><button class="button primary" name="action" value="<?= $isDefaults ? 'defaults' : 'save' ?>"><?= $isDefaults ? 'Vorlage speichern' : ($edit !== '' ? 'Änderungen speichern' : 'Link erstellen') ?><span aria-hidden="true">↗</span></button><?php if (!$isDefaults): ?><button class="button secondary" name="action" value="preview" formaction="/admin/preview" formtarget="_blank">Vorschau öffnen</button><?php endif; ?></div>
+        <div class="save-bar"><button class="button primary" name="action" value="save"><?= $edit !== '' ? 'Änderungen speichern' : 'Link erstellen' ?><span aria-hidden="true">↗</span></button><button class="button secondary" name="action" value="preview" formaction="/admin/preview" formtarget="_blank">Vorschau öffnen</button></div>
     </form>
 </main>
 <aside class="preview-column" aria-label="Live-Vorschau">

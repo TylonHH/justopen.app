@@ -4,8 +4,12 @@ declare(strict_types=1);
 const SL_UTM = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id'];
 
 // A structure is a rendering variant implemented in the landing template and CSS.
-// Users combine a structure with colors into their own saved layouts.
+// Users combine a structure with colors, texts and buttons into their own brands.
 const SL_STRUCTURES = ['card' => 'Karte · klassisch', 'business' => 'Business · sachlich', 'private' => 'Privat · persönlich'];
+
+// Everything a brand supplies to a link. Links follow a brand unless they carry exceptions.
+const SL_PRESENTATION = ['brand', 'logo_url', 'primary_label', 'secondary_label', 'secondary_action',
+    'secondary_url', 'structure', 'background', 'surface', 'text', 'accent', 'accent_text', 'shape', 'delay'];
 
 function sl_defaults(): array
 {
@@ -14,12 +18,19 @@ function sl_defaults(): array
         'description' => '',
         'primary_label' => 'Im Browser öffnen', 'secondary_label' => 'Hier weiter öffnen',
         'secondary_action' => 'current', 'secondary_url' => '', 'logo_url' => '',
-        'structure' => 'card', 'layout' => '',
+        'structure' => 'card', 'brand_id' => '', 'override' => false,
         'background' => '#f4f3ee', 'surface' => '#ffffff', 'text' => '#182b25',
         'accent' => '#176b52', 'accent_text' => '#ffffff', 'shape' => 'rounded',
         'delay' => '', 'forward_utm' => true, 'active' => true,
         'url' => '', 'slug' => '', 'utm' => array_fill_keys(SL_UTM, ''),
     ];
+}
+
+function sl_brand_defaults(): array
+{
+    $config = sl_defaults();
+    foreach (['title', 'description', 'url', 'slug', 'active', 'brand_id', 'override'] as $key) unset($config[$key]);
+    return $config;
 }
 
 function sl_data_dir(): string
@@ -41,58 +52,64 @@ function sl_db(): PDO
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
     $db->exec('PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
-    // Seed only when the layouts table is created: deliberately emptied installs stay empty.
-    $hadLayouts = (bool) $db->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='layouts'")->fetchColumn();
+    $hasBrands = (bool) $db->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='brands'")->fetchColumn();
+    $hasLayouts = (bool) $db->query("SELECT 1 FROM sqlite_master WHERE type='table' AND name='layouts'")->fetchColumn();
+    // Earlier builds stored brand presets as "layouts". Rename in place, never drop data.
+    if (!$hasBrands && $hasLayouts) $db->exec('ALTER TABLE layouts RENAME TO brands');
     $db->exec('CREATE TABLE IF NOT EXISTS links (slug TEXT PRIMARY KEY, config TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS settings (id INTEGER PRIMARY KEY CHECK(id=1), config TEXT NOT NULL);
-        CREATE TABLE IF NOT EXISTS layouts (id TEXT PRIMARY KEY, name TEXT NOT NULL, config TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS brands (id TEXT PRIMARY KEY, name TEXT NOT NULL, config TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS login_attempts (client TEXT PRIMARY KEY, failures INTEGER NOT NULL, expires INTEGER NOT NULL);');
-    if (!$hadLayouts) sl_seed_layouts($db);
+    // Seed only when neither table existed: deliberately emptied installs stay empty.
+    if (!$hasBrands && !$hasLayouts) sl_seed_brands($db);
     chmod($dir . '/justopen.sqlite', 0600);
     return $db;
 }
 
-function sl_layout_presets(): array
+function sl_brand_presets(): array
 {
-    // First-run layouts. Structure, palette and button shape only; texts stay per link.
+    // First-run brands. Texts, structure, palette and button shape; links stay empty.
+    $defaults = sl_brand_defaults();
     return [
-        ['Standard', 'card', ['background' => '#f4f3ee', 'surface' => '#ffffff', 'text' => '#182b25', 'accent' => '#176b52', 'accent_text' => '#ffffff', 'shape' => 'rounded']],
-        ['Business', 'business', ['background' => '#eef1f6', 'surface' => '#ffffff', 'text' => '#0f1c2e', 'accent' => '#12365c', 'accent_text' => '#ffffff', 'shape' => 'square']],
-        ['Privat', 'private', ['background' => '#f8f2ea', 'surface' => '#fffaf4', 'text' => '#2c241d', 'accent' => '#8a4b2f', 'accent_text' => '#ffffff', 'shape' => 'rounded']],
+        ['Standard', array_replace($defaults, ['brand' => 'justopen'])],
+        ['Business', array_replace($defaults, [
+            'brand' => 'Dein Unternehmen', 'structure' => 'business', 'shape' => 'square',
+            'background' => '#eef1f6', 'surface' => '#ffffff', 'text' => '#0f1c2e',
+            'accent' => '#12365c', 'accent_text' => '#ffffff',
+        ])],
+        ['Privat', array_replace($defaults, [
+            'brand' => 'Dein Name', 'structure' => 'private',
+            'background' => '#f8f2ea', 'surface' => '#fffaf4', 'text' => '#2c241d',
+            'accent' => '#8a4b2f', 'accent_text' => '#ffffff',
+        ])],
     ];
 }
 
-function sl_seed_layouts(PDO $db): void
+function sl_seed_brands(PDO $db): void
 {
-    if ((int) $db->query('SELECT COUNT(*) FROM layouts')->fetchColumn() > 0) return;
-    $insert = $db->prepare('INSERT INTO layouts(id,name,config,created_at,updated_at) VALUES(?,?,?,?,?)');
+    if ((int) $db->query('SELECT COUNT(*) FROM brands')->fetchColumn() > 0) return;
+    $insert = $db->prepare('INSERT INTO brands(id,name,config,created_at,updated_at) VALUES(?,?,?,?,?)');
     $now = gmdate('Y-m-d H:i:s');
-    foreach (sl_layout_presets() as [$name, $structure, $palette]) {
+    foreach (sl_brand_presets() as [$name, $config]) {
         $insert->execute([bin2hex(random_bytes(6)), $name,
-            json_encode(['structure' => $structure] + $palette, JSON_THROW_ON_ERROR), $now, $now]);
+            json_encode($config, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), $now, $now]);
     }
 }
 
-function sl_layout_rows(): array
+function sl_brand_rows(): array
 {
-    return sl_db()->query('SELECT id,name,config,created_at,updated_at FROM layouts ORDER BY name COLLATE NOCASE, id')->fetchAll();
+    return sl_db()->query('SELECT id,name,config,created_at,updated_at FROM brands ORDER BY name COLLATE NOCASE, id')->fetchAll();
 }
 
-function sl_layout(string $id): ?array
+function sl_brand(string $id): ?array
 {
     if (!preg_match('/^[a-f0-9]{6,32}$/D', $id)) return null;
-    $query = sl_db()->prepare('SELECT id,name,config FROM layouts WHERE id=?');
+    $query = sl_db()->prepare('SELECT id,name,config FROM brands WHERE id=?');
     $query->execute([$id]);
     $row = $query->fetch();
     if (!$row) return null;
-    $config = array_replace(sl_layout_defaults(), json_decode($row['config'], true, 32, JSON_THROW_ON_ERROR));
+    $config = array_replace(sl_brand_defaults(), json_decode($row['config'], true, 32, JSON_THROW_ON_ERROR));
     return ['id' => (string) $row['id'], 'name' => (string) $row['name']] + $config;
-}
-
-function sl_layout_defaults(): array
-{
-    return ['structure' => 'card', 'background' => '#f4f3ee', 'surface' => '#ffffff',
-        'text' => '#182b25', 'accent' => '#176b52', 'accent_text' => '#ffffff', 'shape' => 'rounded'];
 }
 
 function sl_url(string $url): string
@@ -151,21 +168,15 @@ function sl_palette(array $input, array $config): array
     return $config;
 }
 
-function sl_config(array $input, bool $defaults = false): array
+function sl_presentation(array $input, array $config): array
 {
-    $config = sl_defaults();
-    foreach (['brand', 'title', 'primary_label', 'secondary_label'] as $key) {
+    foreach (['brand', 'primary_label', 'secondary_label'] as $key) {
         $config[$key] = sl_string($input, $key);
         if ($config[$key] === '') throw new InvalidArgumentException('Bitte alle Texte ausfüllen.');
     }
     $config['structure'] = sl_string($input, 'structure');
     if ($config['structure'] === '') $config['structure'] = 'card';
     if (!isset(SL_STRUCTURES[$config['structure']])) throw new InvalidArgumentException('Unbekannter Landingpage-Aufbau.');
-    $config['layout'] = sl_string($input, 'layout', 64);
-    if ($config['layout'] !== '' && !preg_match('/^[a-f0-9]{6,32}$/D', $config['layout'])) {
-        throw new InvalidArgumentException('Unbekanntes Layout.');
-    }
-    $config = sl_palette($input, $config);
     $config['logo_url'] = sl_string($input, 'logo_url', 8192);
     if ($config['logo_url'] !== '') {
         $config['logo_url'] = sl_url($config['logo_url']);
@@ -173,6 +184,7 @@ function sl_config(array $input, bool $defaults = false): array
             throw new InvalidArgumentException('Das Logo benötigt eine HTTPS-Adresse.');
         }
     }
+    $config = sl_palette($input, $config);
     $config['shape'] = sl_string($input, 'shape');
     if (!in_array($config['shape'], ['rounded', 'square'], true)) throw new InvalidArgumentException('Ungültige Buttonform.');
     $config['secondary_action'] = sl_string($input, 'secondary_action');
@@ -186,17 +198,45 @@ function sl_config(array $input, bool $defaults = false): array
     if ($config['delay'] !== '' && (!preg_match('/^(0|[1-9][0-9]{0,2})$/D', $config['delay']) || (int) $config['delay'] > 300)) {
         throw new InvalidArgumentException('Countdown: leer zum Ausschalten oder 0 bis 300 Sekunden.');
     }
-    $config['forward_utm'] = isset($input['forward_utm']);
-    $config['active'] = isset($input['active']);
-    if (!$defaults) {
-        $config['url'] = sl_url(sl_string($input, 'url', 8192));
-        $config['slug'] = sl_string($input, 'slug', 64);
-        if ($config['slug'] === '') $config['slug'] = bin2hex(random_bytes(5));
-        if (!preg_match('/^[a-z0-9][a-z0-9_-]{2,63}$/D', $config['slug'])) {
-            throw new InvalidArgumentException('Kurzname: 3–64 Zeichen, nur a–z, 0–9, Bindestrich und Unterstrich.');
-        }
-    }
+    return $config;
+}
+
+function sl_utm_values(array $input, array $config): array
+{
     foreach (SL_UTM as $key) $config['utm'][$key] = sl_string($input, $key, 500);
+    return $config;
+}
+
+function sl_config(array $input): array
+{
+    $config = sl_defaults();
+    $config['title'] = sl_string($input, 'title');
+    if ($config['title'] === '') throw new InvalidArgumentException('Bitte einen Linknamen zur Verwaltung eingeben.');
+    $config = sl_presentation($input, $config);
+    $config['brand_id'] = sl_string($input, 'brand_id', 64);
+    if ($config['brand_id'] !== '' && !preg_match('/^[a-f0-9]{6,32}$/D', $config['brand_id'])) {
+        throw new InvalidArgumentException('Unbekannte Marke.');
+    }
+    $config = sl_utm_values($input, $config);
+    $config['forward_utm'] = isset($input['forward_utm']);
+    $config['url'] = sl_url(sl_string($input, 'url', 8192));
+    $config['slug'] = sl_string($input, 'slug', 64);
+    if ($config['slug'] === '') $config['slug'] = bin2hex(random_bytes(5));
+    if (!preg_match('/^[a-z0-9][a-z0-9_-]{2,63}$/D', $config['slug'])) {
+        throw new InvalidArgumentException('Kurzname: 3–64 Zeichen, nur a–z, 0–9, Bindestrich und Unterstrich.');
+    }
+    $config['active'] = isset($input['active']);
+    return $config;
+}
+
+function sl_brand_config(array $input): array
+{
+    $config = sl_brand_defaults();
+    $config['name'] = sl_string($input, 'name', 80);
+    if ($config['name'] === '') throw new InvalidArgumentException('Bitte einen Namen für die Marke eingeben.');
+    $config = sl_presentation($input, $config);
+    $config = sl_utm_values($input, $config);
+    $config['forward_utm'] = isset($input['forward_utm']);
     return $config;
 }
 
@@ -231,44 +271,69 @@ function sl_save(array $config, bool $update): void
     }
 }
 
-function sl_layout_config(array $input): array
+function sl_brand_save(array $brand, string $id = ''): string
 {
-    $config = sl_layout_defaults();
-    $config['name'] = sl_string($input, 'name', 80);
-    if ($config['name'] === '') throw new InvalidArgumentException('Bitte einen Namen für das Layout eingeben.');
-    $config['structure'] = sl_string($input, 'structure');
-    if (!isset(SL_STRUCTURES[$config['structure']])) throw new InvalidArgumentException('Bitte einen Aufbau auswählen.');
-    $config = sl_palette($input, $config);
-    $config['shape'] = sl_string($input, 'shape');
-    if (!in_array($config['shape'], ['rounded', 'square'], true)) throw new InvalidArgumentException('Ungültige Buttonform.');
-    return $config;
-}
-
-function sl_layout_save(array $layout, string $id = ''): string
-{
-    $config = json_encode(array_intersect_key($layout, sl_layout_defaults()), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    $config = json_encode(array_intersect_key($brand, sl_brand_defaults()), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     $now = gmdate('Y-m-d H:i:s');
     if ($id === '') {
         $id = bin2hex(random_bytes(6));
-        sl_db()->prepare('INSERT INTO layouts(id,name,config,created_at,updated_at) VALUES(?,?,?,?,?)')
-            ->execute([$id, $layout['name'], $config, $now, $now]);
+        sl_db()->prepare('INSERT INTO brands(id,name,config,created_at,updated_at) VALUES(?,?,?,?,?)')
+            ->execute([$id, $brand['name'], $config, $now, $now]);
         return $id;
     }
-    sl_db()->prepare('UPDATE layouts SET name=?, config=?, updated_at=? WHERE id=?')
-        ->execute([$layout['name'], $config, $now, $id]);
-    if (sl_layout($id) === null) throw new InvalidArgumentException('Layout nicht gefunden.');
+    sl_db()->prepare('UPDATE brands SET name=?, config=?, updated_at=? WHERE id=?')
+        ->execute([$brand['name'], $config, $now, $id]);
+    if (sl_brand($id) === null) throw new InvalidArgumentException('Marke nicht gefunden.');
     return $id;
 }
 
-function sl_layout_delete(string $id): void
+function sl_set_default_brand(string $id): void
 {
-    sl_db()->prepare('DELETE FROM layouts WHERE id=?')->execute([$id]);
-    // Links keep their saved palette and structure; only the default preset reference is cleared.
     $settings = sl_settings();
-    if (($settings['layout'] ?? '') !== $id) return;
-    $settings['layout'] = '';
+    if ((string) ($settings['brand_id'] ?? '') === $id) return;
+    $settings['brand_id'] = $id;
     sl_db()->prepare('INSERT INTO settings(id,config) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET config=excluded.config')
         ->execute([json_encode($settings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)]);
+}
+
+function sl_brand_delete(string $id): void
+{
+    sl_db()->prepare('DELETE FROM brands WHERE id=?')->execute([$id]);
+    // Links keep their resolved snapshot; only the default reference is cleared.
+    if ((string) (sl_settings()['brand_id'] ?? '') === $id) sl_set_default_brand('');
+}
+
+// Links follow their brand live. A link with its own changes keeps them as an exception.
+function sl_effective(array $link): array
+{
+    if (($link['brand_id'] ?? '') === '' || !empty($link['override'])) return $link;
+    $brand = sl_brand((string) $link['brand_id']);
+    if ($brand === null) return $link;
+    foreach (SL_PRESENTATION as $key) $link[$key] = $brand[$key];
+    return $link;
+}
+
+function sl_presentation_differs(array $left, array $right): bool
+{
+    foreach (SL_PRESENTATION as $key) {
+        if ((string) ($left[$key] ?? '') !== (string) ($right[$key] ?? '')) return true;
+    }
+    return false;
+}
+
+function sl_new_link(): array
+{
+    $config = sl_defaults();
+    $brand = sl_brand((string) (sl_settings()['brand_id'] ?? ''));
+    if ($brand === null) {
+        $rows = sl_brand_rows();
+        $brand = $rows ? sl_brand((string) $rows[0]['id']) : null;
+    }
+    if ($brand !== null) {
+        foreach (array_merge(SL_PRESENTATION, ['utm', 'forward_utm']) as $key) $config[$key] = $brand[$key];
+        $config['brand_id'] = $brand['id'];
+    }
+    return $config;
 }
 
 function sl_target(array $config, array $incoming = []): string
@@ -444,7 +509,9 @@ function sl_dispatch(array $server, array $get, array $post): bool
             if (!$config || !$config['active']) {
                 sl_render('message', ['title' => 'Link nicht verfügbar', 'message' => 'Dieser Link existiert nicht oder wurde deaktiviert.'], $config ? 410 : 404); return true;
             }
+            // Tracking stays per link; the look is resolved from the brand unless the link has exceptions.
             $target = sl_target($config, $get);
+            $config = sl_effective($config);
             if ($match[1] === 'go') {
                 sl_headers(bin2hex(random_bytes(16)));
                 header('Location: ' . $target, true, 302); return true;
@@ -457,7 +524,7 @@ function sl_dispatch(array $server, array $get, array $post): bool
         }
         sl_session($server);
         $authenticated = sl_authenticated();
-        $error = ''; $status = 200; $applied = false;
+        $error = ''; $status = 200; $applied = '';
         if ($method === 'POST' && !sl_csrf($post)) {
             sl_render('message', ['title' => 'Sitzung abgelaufen', 'message' => 'Öffne die Verwaltung erneut und wiederhole die Aktion.'], 403); return true;
         }
@@ -470,65 +537,74 @@ function sl_dispatch(array $server, array $get, array $post): bool
             }
             sl_render('login', ['error' => $error], $status); return true;
         }
-        $defaults = sl_settings();
-        $layouts = sl_layout_rows();
+        $brands = sl_brand_rows();
+        $settings = sl_settings();
         $view = is_string($get['view'] ?? null) ? $get['view'] : '';
-        $mode = $view === 'defaults' ? 'defaults' : ($view === 'layouts' ? 'layouts' : 'link');
-        $applied = '';
+        // The old separate preset pages now live in the brand manager.
+        if ($view === 'defaults' || $view === 'layouts') { sl_redirect('/admin?view=brands'); return true; }
 
-        // Landing page layouts are reusable presets: a structure plus a palette.
-        // Links keep their own copy, so editing or deleting a layout never changes shared links.
-        if ($mode === 'layouts') {
-            $layoutId = is_string($get['edit'] ?? null) ? $get['edit'] : '';
-            $layoutDraft = null; $layoutError = ''; $layoutStatus = 200;
+        // Brands bundle mark, texts, structure, colors, buttons, delay and tracking defaults.
+        if ($view === 'brands') {
+            $brandId = is_string($get['edit'] ?? null) ? $get['edit'] : '';
+            $draft = null; $brandError = ''; $brandStatus = 200;
             if ($method === 'POST') {
                 $action = (string) ($post['action'] ?? '');
-                $layoutId = is_string($post['layout_id'] ?? null) ? $post['layout_id'] : '';
+                $brandId = is_string($post['brand_id'] ?? null) ? $post['brand_id'] : '';
                 try {
-                    if ($action === 'layout_delete') {
-                        if ($layoutId === '') throw new InvalidArgumentException('Layout nicht gefunden.');
-                        sl_layout_delete($layoutId);
-                        sl_redirect('/admin?view=layouts&deleted=1'); return true;
+                    if ($action === 'brand_delete') {
+                        if ($brandId === '') throw new InvalidArgumentException('Marke nicht gefunden.');
+                        sl_brand_delete($brandId);
+                        sl_redirect('/admin?view=brands&deleted=1'); return true;
                     }
-                    if ($action === 'layout_copy') {
-                        $source = sl_layout($layoutId);
-                        if ($source === null) throw new InvalidArgumentException('Layout nicht gefunden.');
+                    if ($action === 'brand_copy') {
+                        $source = sl_brand($brandId);
+                        if ($source === null) throw new InvalidArgumentException('Marke nicht gefunden.');
                         $copy = $source;
                         $copy['name'] = strlen($source['name'] . ' (Kopie)') <= 80 ? $source['name'] . ' (Kopie)' : 'Kopie';
-                        $newId = sl_layout_save($copy);
-                        sl_redirect('/admin?view=layouts&edit=' . rawurlencode($newId) . '&copied=1'); return true;
+                        $newId = sl_brand_save($copy);
+                        sl_redirect('/admin?view=brands&edit=' . rawurlencode($newId) . '&copied=1'); return true;
                     }
-                    if ($action !== 'layout_save') throw new InvalidArgumentException('Unbekannte Aktion.');
-                    $savedId = sl_layout_save(sl_layout_config($post), $layoutId);
-                    sl_redirect('/admin?view=layouts&edit=' . rawurlencode($savedId) . '&saved=1'); return true;
+                    if ($action === 'brand_default') {
+                        if (sl_brand($brandId) === null) throw new InvalidArgumentException('Marke nicht gefunden.');
+                        sl_set_default_brand($brandId);
+                        sl_redirect('/admin?view=brands&edit=' . rawurlencode($brandId) . '&default=1'); return true;
+                    }
+                    if ($action !== 'brand_save') throw new InvalidArgumentException('Unbekannte Aktion.');
+                    $savedId = sl_brand_save(sl_brand_config($post), $brandId);
+                    if (isset($post['default'])) sl_set_default_brand($savedId);
+                    elseif ((string) ($settings['brand_id'] ?? '') === $savedId) sl_set_default_brand('');
+                    sl_redirect('/admin?view=brands&edit=' . rawurlencode($savedId) . '&saved=1'); return true;
                 } catch (InvalidArgumentException $e) {
-                    $layoutError = $e->getMessage(); $layoutStatus = 422;
-                    $layoutDraft = array_replace(sl_layout_defaults(), array_intersect_key($post, sl_layout_defaults()));
-                    $layoutDraft['name'] = is_string($post['name'] ?? null) ? substr($post['name'], 0, 80) : '';
-                    $layoutDraft['id'] = $layoutId;
+                    $brandError = $e->getMessage(); $brandStatus = 422;
+                    $draft = array_replace(sl_brand_defaults(), array_intersect_key($post, sl_brand_defaults()));
+                    $draft['name'] = is_string($post['name'] ?? null) ? substr($post['name'], 0, 80) : '';
+                    $draft['id'] = $brandId;
                 }
             }
-            if ($layoutDraft === null) {
-                if ($layoutId !== '') {
-                    $layoutDraft = sl_layout($layoutId);
-                    if ($layoutDraft === null) {
-                        sl_render('message', ['title' => 'Layout nicht gefunden', 'message' => 'Bitte ein vorhandenes Layout auswählen.'], 404); return true;
+            if ($draft === null) {
+                if ($brandId !== '') {
+                    $draft = sl_brand($brandId);
+                    if ($draft === null) {
+                        sl_render('message', ['title' => 'Marke nicht gefunden', 'message' => 'Bitte eine vorhandene Marke auswählen.'], 404); return true;
                     }
                 } else {
-                    $layoutDraft = ['id' => '', 'name' => '', 'structure' => 'card'] + sl_layout_defaults();
+                    $draft = ['id' => '', 'name' => ''] + sl_brand_defaults();
                 }
             }
-            sl_render('layouts', ['layouts' => $layouts, 'layout' => $layoutDraft, 'origin' => $origin,
-                'error' => $layoutError, 'saved' => isset($get['saved']), 'copied' => isset($get['copied']),
-                'deleted' => isset($get['deleted'])], $layoutStatus);
+            sl_render('brands', ['brands' => $brands, 'brand' => $draft, 'origin' => $origin,
+                'defaultBrandId' => (string) ($settings['brand_id'] ?? ''), 'error' => $brandError,
+                'saved' => isset($get['saved']), 'copied' => isset($get['copied']),
+                'deleted' => isset($get['deleted']), 'defaulted' => isset($get['default'])], $brandStatus);
             return true;
         }
 
         $edit = is_string($get['edit'] ?? null) ? $get['edit'] : '';
-        $config = $edit !== '' ? sl_link($edit) : $defaults;
+        $config = $edit !== '' ? sl_link($edit) : sl_new_link();
         if ($config === null) {
             sl_render('message', ['title' => 'Link nicht gefunden', 'message' => 'Bitte einen vorhandenen Link auswählen.'], 404); return true;
         }
+        // Show the live brand values; a link with exceptions shows its own.
+        if ($edit !== '') $config = sl_effective($config);
         if ($edit === '') { $config['slug'] = ''; $config['url'] = ''; $config['active'] = true; }
         if ($method === 'POST') {
             $action = $post['action'] ?? '';
@@ -537,39 +613,29 @@ function sl_dispatch(array $server, array $get, array $post): bool
                 setcookie('justopen_admin', '', ['expires' => 1, 'path' => '/admin', 'secure' => strpos($origin, 'https://') === 0, 'httponly' => true, 'samesite' => 'Strict']);
                 sl_redirect('/admin'); return true;
             }
-            $mode = (($post['view'] ?? $get['view'] ?? '') === 'defaults' || $action === 'defaults') ? 'defaults' : 'link';
             $edit = is_string($post['original_slug'] ?? null) ? $post['original_slug'] : '';
             try {
-                if (!in_array($action, ['save', 'defaults', 'preview', 'apply_defaults', 'apply_layout'], true)) throw new InvalidArgumentException('Unbekannte Aktion.');
-                if ($action === 'apply_layout') {
-                    $preset = sl_layout(is_string($post['layout'] ?? null) ? $post['layout'] : '');
-                    if ($preset === null) throw new InvalidArgumentException('Layout nicht gefunden. Bitte erneut auswählen.');
-                    foreach (['structure', 'background', 'surface', 'text', 'accent', 'accent_text', 'shape'] as $key) {
-                        $post[$key] = $preset[$key];
-                    }
-                    $post['layout'] = $preset['id'];
+                if (!in_array($action, ['save', 'preview', 'apply_brand'], true)) throw new InvalidArgumentException('Unbekannte Aktion.');
+                if ($action === 'apply_brand') {
+                    $preset = sl_brand(is_string($post['brand_id'] ?? null) ? $post['brand_id'] : '');
+                    if ($preset === null) throw new InvalidArgumentException('Marke nicht gefunden. Bitte erneut auswählen.');
+                    foreach (SL_PRESENTATION as $key) $post[$key] = $preset[$key];
+                    $post['brand_id'] = $preset['id'];
                 }
-                if ($action === 'apply_defaults') {
-                    foreach (['brand', 'logo_url', 'primary_label', 'secondary_label', 'secondary_action', 'secondary_url',
-                        'structure', 'layout', 'background', 'surface', 'text', 'accent', 'accent_text', 'shape', 'delay'] as $key) {
-                        $post[$key] = $defaults[$key];
-                    }
-                }
-                $config = sl_config($post, $mode === 'defaults');
+                $config = sl_config($post);
+                $preset = $config['brand_id'] !== '' ? sl_brand($config['brand_id']) : null;
+                $config['override'] = $preset !== null && sl_presentation_differs($config, $preset);
                 if ($path === '/admin/preview' || $action === 'preview') {
                     sl_render('landing', ['config' => $config, 'target' => sl_target($config), 'handoff' => '', 'preview' => true]); return true;
                 }
-                if ($action === 'apply_defaults' || $action === 'apply_layout') {
+                if ($edit !== '' && ($edit !== $config['slug'] || sl_link($edit) === null)) {
+                    throw new InvalidArgumentException('Der Kurzname eines bestehenden Links kann nicht geändert werden.');
+                }
+                if ($action === 'apply_brand') {
                     // Show the applied preset first; only saving persists it.
-                    $applied = $action === 'apply_layout' ? 'layout' : 'defaults';
-                } elseif ($mode === 'defaults') {
-                    sl_db()->prepare('INSERT INTO settings(id,config) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET config=excluded.config')
-                        ->execute([json_encode($config, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE)]);
-                    sl_redirect('/admin?view=defaults&saved=1'); return true;
+                    $applied = 'brand';
+                    $config = sl_effective($config);
                 } else {
-                    if ($edit !== '' && ($edit !== $config['slug'] || sl_link($edit) === null)) {
-                        throw new InvalidArgumentException('Der Kurzname eines bestehenden Links kann nicht geändert werden.');
-                    }
                     sl_save($config, $edit !== '');
                     sl_redirect('/admin?edit=' . rawurlencode($config['slug']) . '&saved=1'); return true;
                 }
@@ -581,10 +647,12 @@ function sl_dispatch(array $server, array $get, array $post): bool
                 foreach (SL_UTM as $key) $config['utm'][$key] = is_string($post[$key] ?? null) ? $post[$key] : '';
                 foreach ($config as $key => $value) if (is_array($value) && $key !== 'utm') $config[$key] = '';
                 $config['active'] = isset($post['active']); $config['forward_utm'] = isset($post['forward_utm']);
+                $config['override'] = false;
             }
         }
         $links = sl_db()->query('SELECT slug,config,updated_at FROM links ORDER BY updated_at DESC, slug')->fetchAll();
-        sl_render('admin', compact('config', 'defaults', 'layouts', 'links', 'mode', 'edit', 'error', 'origin', 'applied') + ['saved' => isset($get['saved'])], $status);
+        sl_render('admin', compact('config', 'brands', 'links', 'edit', 'error', 'origin', 'applied')
+            + ['saved' => isset($get['saved']), 'defaultBrandId' => (string) ($settings['brand_id'] ?? '')], $status);
     } catch (Throwable $e) {
         error_log('justopen: ' . $e->getMessage());
         sl_render('message', ['title' => 'Kurz nicht erreichbar', 'message' => 'Bitte später erneut versuchen. Die Serverkonfiguration muss geprüft werden.'], 503);

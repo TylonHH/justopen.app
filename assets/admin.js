@@ -50,21 +50,35 @@
         picker.addEventListener('change', syncPicker);
         hex.addEventListener('input', () => { if (colorPattern.test(hex.value)) picker.value = hex.value; });
     });
-    const layoutSelect = document.getElementById('layout_preset');
-    if (layoutSelect) layoutSelect.addEventListener('change', () => {
-        const option = layoutSelect.selectedOptions[0];
-        if (!option || !option.dataset.structure) return;
-        Object.keys(colors).forEach(key => {
-            const picker = document.getElementById(key);
-            const hex = field(key);
-            if (option.dataset[key]) {
-                picker.value = option.dataset[key];
-                hex.value = option.dataset[key];
-            }
+    const brandSelect = document.getElementById('brand_preset');
+    if (brandSelect) brandSelect.addEventListener('change', () => {
+        let presets = {};
+        try { presets = JSON.parse(brandSelect.dataset.presets || '{}'); } catch (_) { return; }
+        const preset = presets[brandSelect.value];
+        if (!preset) return;
+        // Selecting a brand loads its look. The save step turns deliberate deviations into exceptions.
+        ['brand', 'logo_url', 'primary_label', 'secondary_label', 'secondary_action', 'secondary_url', 'delay'].forEach(key => {
+            const input = document.getElementById(key);
+            if (input && typeof preset[key] === 'string') input.value = preset[key];
         });
-        const shape = document.getElementById('shape');
-        if (shape && option.dataset.shape) shape.value = option.dataset.shape;
-        document.getElementById('structure').value = option.dataset.structure;
+        ['structure', 'shape'].forEach(key => {
+            const input = document.getElementById(key);
+            if (input && typeof preset[key] === 'string') input.value = preset[key];
+        });
+        Object.keys(colors).forEach(key => {
+            if (typeof preset[key] !== 'string') return;
+            document.getElementById(key).value = preset[key];
+            field(key).value = preset[key];
+        });
+        // Tracking defaults only seed a new link; existing tracking is never overwritten.
+        if (brandSelect.dataset.applyUtm === 'true') {
+            ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id'].forEach(key => {
+                const input = document.getElementById(key);
+                if (input && preset.utm && typeof preset.utm[key] === 'string') input.value = preset.utm[key];
+            });
+            const forward = form.elements.namedItem('forward_utm');
+            if (forward) forward.checked = preset.forward_utm !== false;
+        }
     });
     form.addEventListener('input', update);
     form.addEventListener('change', update);

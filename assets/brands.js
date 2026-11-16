@@ -4,13 +4,13 @@
         if (el.dataset.color) el.style.background = el.dataset.color;
     });
 
-    const form = document.getElementById('layout-form');
-    const preview = document.getElementById('layout-preview');
+    const form = document.getElementById('brand-form');
+    const preview = document.getElementById('brand-preview');
+    const colors = {background: '--page', surface: '--surface', text: '--ink', accent: '--accent', accent_text: '--on-accent'};
+    const colorPattern = /^#[a-f\d]{6}$/i;
     if (form && preview) {
         const field = name => form.querySelector('[name="' + name + '"]');
         const value = name => field(name) ? field(name).value : '';
-        const colors = {background:'--page',surface:'--surface',text:'--ink',accent:'--accent',accent_text:'--on-accent'};
-        const colorPattern = /^#[a-f\d]{6}$/i;
         function luminance(hex) {
             const c = hex.match(/[a-f\d]{2}/gi).map(part => parseInt(part, 16) / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
             return .2126 * c[0] + .7152 * c[1] + .0722 * c[2];
@@ -27,12 +27,14 @@
             preview.style.setProperty('--radius', value('shape') === 'square' ? '4px' : '18px');
             const structure = value('structure');
             preview.className = 'phone-preview lp-' + (['card', 'business', 'private'].includes(structure) ? structure : 'card');
-            preview.querySelectorAll('.pv-brand').forEach(el => el.textContent = value('name') || 'Dein Layout');
+            preview.querySelectorAll('.pv-brand').forEach(el => el.textContent = value('brand') || 'Dein Name');
+            preview.querySelectorAll('.pv-primary').forEach(el => el.textContent = value('primary_label') || 'Im Browser öffnen');
+            preview.querySelectorAll('.pv-secondary').forEach(el => el.textContent = value('secondary_label') || 'Hier weiter öffnen');
             const note = document.getElementById('contrast-note');
             if (note) {
                 const validColors = Object.keys(colors).every(name => colorPattern.test(value(name)));
                 const readable = validColors && contrast(value('text'), value('surface')) >= 4.5 && contrast(value('accent_text'), value('accent')) >= 4.5;
-                note.textContent = !validColors ? 'Bitte für jede Farbe einen sechsstelligen Hexcode eingeben, zum Beispiel #176b52.' : readable ? 'Textkontrast passt. Dein Layout ist lesbar.' : 'Kontrast zu gering. Bitte Text- oder Hintergrundfarben ändern (mindestens 4,5:1).';
+                note.textContent = !validColors ? 'Bitte für jede Farbe einen sechsstelligen Hexcode eingeben, zum Beispiel #176b52.' : readable ? 'Textkontrast passt. Deine Marke ist lesbar.' : 'Kontrast zu gering. Bitte Text- oder Hintergrundfarben ändern (mindestens 4,5:1).';
             }
         }
         Object.keys(colors).forEach(name => {
@@ -43,6 +45,10 @@
             picker.addEventListener('change', syncPicker);
             hex.addEventListener('input', () => { if (colorPattern.test(hex.value)) picker.value = hex.value; });
         });
+        form.addEventListener('input', update);
+        form.addEventListener('change', update);
+        update();
+
         const colorFeedback = document.getElementById('color-feedback');
         document.querySelectorAll('[data-copy-color]').forEach(button => button.addEventListener('click', async () => {
             const input = field(button.dataset.copyColor);
@@ -60,9 +66,6 @@
                 colorFeedback.textContent = 'Bitte den ausgewählten Hexcode manuell kopieren.';
             }
         }));
-        form.addEventListener('input', update);
-        form.addEventListener('change', update);
-        update();
     }
 
     document.querySelectorAll('[data-confirm]').forEach(button => button.addEventListener('click', event => {

@@ -8,13 +8,14 @@ Self-hosted website links with a customizable two-button landing page. Create a 
 - Persistent `/l/your-name` links; edit destinations without changing already shared links.
 - Two buttons: request an external browser, then open in the current browser, copy the destination, or open a different URL.
 - Minimal visitor page: logo/brand, destination hostname, and two buttons. No marketing heading, description, or footer.
-- Per-link logo URL, brand, button labels, five colors, and rounded/square buttons; link names are for administration only.
-- Landing page layouts: save any number of reusable looks (structure + colors + button shape) under `/admin?view=layouts`, then pick one from a dropdown while creating or editing a link. Layouts can be created, copied, edited, and deleted; each link keeps its own copy, so changing or deleting a layout never alters links that were already shared.
-- Three built-in structures: **Karte** (classic centered card), **Business** (wide, left-aligned sheet with accent rule and side-by-side buttons) and **Privat** (soft, centered card with a round logo and pill destination). First run seeds one layout per structure.
+- A **brand** bundles everything a landing page needs: mark name, logo, button labels, button actions, structure, five colors, button shape, opening delay and tracking defaults. Manage any number of brands under `/admin?view=brands`; create, copy, edit, delete, and mark one as the default for new links.
+- Creating a link is then just: pick a brand, enter the destination — optionally adjust tracking. Brand name, logo, texts and colors are inherited.
+- Links follow their brand live: changing a brand updates all links of that brand. A deliberate per-link change becomes an exception and is never overwritten; “Marke wieder übernehmen” removes the exception.
+- Three built-in structures: **Karte** (classic centered card), **Business** (wide, left-aligned sheet with accent rule and side-by-side buttons) and **Privat** (soft, centered card with a round logo and pill destination). First run seeds one brand per structure.
 - Live mobile preview and a separate preview page that disables navigation and the countdown.
 - Optional automatic opening attempt after 0–300 seconds, with a visitor cancellation checkbox. Blank means disabled.
 - Six UTM fields, optionally forwarding UTM supplied on the shared short link.
-- Reusable defaults for new links; existing links offer “Vorlage anwenden” to load the latest styling, button actions and opening delay into the editor. Review and save to update the link. Destination, alias, internal name and tracking stay unchanged.
+- Per-link exceptions: any change a link makes to its brand is kept for that link only. “Marke wieder übernehmen” clears the exception.
 - Private administration, CSRF protection, session expiry, password rotation invalidation, and persistent login rate limiting.
 - Deactivate/reactivate links without deleting their configuration. Disabled landing and handoff URLs return HTTP 410.
 - Original social app deep links and the Amazon endpoint remain available.
@@ -32,21 +33,25 @@ Open `http://localhost:8088/admin`. The port binds to localhost only. Configure 
 
 ## Create an Instagram DM link
 
-1. Enter `https://hoerbuch.warsowerk.de/` and optional short name `hoerbuch`.
-2. Pick a landing page layout from the dropdown, or keep “Eigenes Layout” and set the colors yourself.
-3. Customize the landing page and its two buttons.
-4. Set `utm_source=instagram`, `utm_medium=dm`, and a campaign if needed.
-5. Keep automatic opening disabled, or select a delay.
-6. Save, copy `https://your-domain/l/hoerbuch`, and send it in a DM.
+1. Create the brand once under **Marken & Landingpages**: name, logo, texts, structure, colors, buttons.
+2. In the editor, pick the brand and enter the destination, e.g. `https://hoerbuch.warsowerk.de/`.
+3. Optional: short name `hoerbuch`, `utm_source=instagram`, `utm_medium=dm`, and a campaign.
+4. Save, copy `https://your-domain/l/hoerbuch`, and send it in a DM.
 
-## Layouts
+## Marken & Landingpages
 
-Open **Landingpage-Layouts** in the sidebar. A layout stores a structure, five colors, and the button shape. Create as many as you need (for example “Business”, “Privat”, or per-campaign looks), copy an existing one, or delete ones you no longer use.
+Open **Marken & Landingpages** in the sidebar. A brand stores the internal name, the visible mark name, logo, both button labels and actions, the structure, five colors, the button shape, the opening delay and the UTM defaults for new links.
 
-- Selecting a layout in the editor switches the structure and loads its colors immediately; every color stays editable afterwards.
-- “Layout übernehmen” on an existing link loads the selected preset, but only saving persists it. Destination, alias, internal name, and tracking stay unchanged.
-- Links store their own structure and palette. Editing or deleting a layout therefore never changes links that have already been shared.
-- In **Vorlage für neue Links** you can pick the layout that new links start with.
+- Create as many brands as you need (for example “Business”, “Privat”, or one per campaign), copy an existing one, or delete ones you no longer use.
+- Mark one brand as **Standard für neue Links**; new links start with it.
+- Selecting a brand in the link editor loads its complete look. Only the destination, short name, internal link name and tracking stay per link.
+- Links follow their brand live. Changing a brand's colors or texts updates every link that follows it.
+- As soon as a link deviates from its brand, it becomes an **exception** and keeps its own values. The editor shows this and offers “Marke wieder übernehmen”.
+- Deleting a brand never breaks shared links: they keep the last resolved look.
+
+### Tracking note
+
+Brand UTM values are defaults for **new** links. Existing links keep their own tracking, so campaign data is never rewritten behind your back.
 
 Existing destination parameters stay byte-identical when no UTM changes are requested. UTM merging preserves unrelated parameter spelling, order, duplicate keys, percent encoding, and fragments. Adding tracking to a signed URL can invalidate its signature.
 
@@ -112,7 +117,7 @@ SQLite keeps deployment small: use **one application replica on one host** with 
 | --- | --- |
 | `/` | GET redirects to private editor; legacy form POST still works. |
 | `/admin` | Private link editor and defaults. |
-| `/admin?view=layouts` | Manage landing page layouts: create, copy, edit, delete. |
+| `/admin?view=brands` | Manage brands: create, copy, edit, delete, set the default. |
 | `/admin/preview` | Authenticated, CSRF-protected POST preview; does not save. |
 | `/l/<slug>` | Public two-button landing, no admin session. |
 | `/go/<slug>` | Redirect to stored destination, recognized incoming UTM only. |
@@ -153,3 +158,4 @@ See [CAPROVER.md](CAPROVER.md) for deployment, backups, and rollback.
 ## License
 
 MIT. Based on [unkn0w/justopen.app](https://github.com/unkn0w/justopen.app), originally by Jakub ‘unknow’ Mrugalski. Upstream providers include YouTube, Instagram, X, Facebook, LinkedIn, and Spotify; this fork adds Amazon support.
+

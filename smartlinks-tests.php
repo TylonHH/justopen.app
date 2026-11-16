@@ -74,40 +74,60 @@ check(sl_link('unknown') === null, 'Unknown link lookup.');
 $handoff = sl_handoff($config, ['utm_medium' => 'dm & text', 'url' => 'https://evil.test'], 'https://go.example.com');
 check($handoff === 'https://go.example.com/go/hoerbuch?utm_medium=dm%20%26%20text', 'Handoff accepts only UTM.');
 
-// Layout presets: reusable structure + palette, managed independently from links.
-$seeded = sl_layout_rows();
-check(count($seeded) === 3, 'First run seeds three layouts.');
-check(in_array('Business', array_column($seeded, 'name'), true) && in_array('Privat', array_column($seeded, 'name'), true), 'Seeded layouts cover business and private.');
-check(in_array(sl_layout($seeded[0]['id'])['structure'], array_keys(SL_STRUCTURES), true), 'Seeded layout has a known structure.');
-check(sl_layout('unknown') === null && sl_layout('../../etc/passwd') === null, 'Unknown layout ids are rejected.');
-$preset = ['name' => 'Kampagne', 'structure' => 'business', 'background' => '#eef1f6', 'surface' => '#ffffff',
-    'text' => '#0f1c2e', 'accent' => '#12365c', 'accent_text' => '#ffffff', 'shape' => 'square'];
-$layoutId = sl_layout_save(sl_layout_config($preset));
-check(sl_layout($layoutId)['name'] === 'Kampagne' && sl_layout($layoutId)['structure'] === 'business', 'Layout created.');
-sl_layout_save(sl_layout_config(array_replace($preset, ['name' => 'Kampagne 2', 'structure' => 'private'])), $layoutId);
-check(sl_layout($layoutId)['name'] === 'Kampagne 2' && sl_layout($layoutId)['structure'] === 'private', 'Layout updated.');
-rejects(static fn() => sl_layout_config(array_replace($preset, ['name' => ''])), 'Layout needs a name.');
-rejects(static fn() => sl_layout_config(array_replace($preset, ['structure' => 'hacker'])), 'Unknown structure rejected.');
-rejects(static fn() => sl_layout_config(array_replace($preset, ['accent' => 'red'])), 'Layout color validation.');
-rejects(static fn() => sl_layout_config(array_replace($preset, ['accent_text' => $preset['accent']])), 'Layout contrast validation.');
+// Brands bundle the whole look. Links follow a brand unless they carry exceptions.
+$seeded = sl_brand_rows();
+check(count($seeded) === 3, 'First run seeds three brands.');
+check(in_array('Business', array_column($seeded, 'name'), true) && in_array('Privat', array_column($seeded, 'name'), true), 'Seeded brands cover business and private.');
+$seedBrand = sl_brand($seeded[0]['id']);
+check(in_array($seedBrand['structure'], array_keys(SL_STRUCTURES), true) && $seedBrand['primary_label'] !== '', 'Seeded brand carries structure and texts.');
+check(sl_brand('unknown') === null && sl_brand('../../etc/passwd') === null, 'Unknown brand ids are rejected.');
+$preset = sl_brand_defaults();
+foreach (SL_UTM as $key) $preset[$key] = '';
+$preset = array_replace($preset, ['name' => 'Kampagne', 'brand' => 'Kampagne Marke', 'structure' => 'business', 'shape' => 'square',
+    'background' => '#eef1f6', 'surface' => '#ffffff', 'text' => '#0f1c2e', 'accent' => '#12365c', 'accent_text' => '#ffffff']);
+$brandId = sl_brand_save(sl_brand_config($preset));
+check(sl_brand($brandId)['brand'] === 'Kampagne Marke', 'Brand created with its own mark.');
+sl_brand_save(sl_brand_config(array_replace($preset, ['name' => 'Kampagne 2', 'structure' => 'private'])), $brandId);
+check(sl_brand($brandId)['name'] === 'Kampagne 2' && sl_brand($brandId)['structure'] === 'private', 'Brand updated.');
+rejects(static fn() => sl_brand_config(array_replace($preset, ['name' => ''])), 'Brand needs a name.');
+rejects(static fn() => sl_brand_config(array_replace($preset, ['structure' => 'hacker'])), 'Unknown structure rejected.');
+rejects(static fn() => sl_brand_config(array_replace($preset, ['accent' => 'red'])), 'Brand color validation.');
+rejects(static fn() => sl_brand_config(array_replace($preset, ['accent_text' => $preset['accent']])), 'Brand contrast validation.');
 
-$withLayout = sl_config(array_replace($f, ['structure' => 'private', 'layout' => $layoutId]));
-check($withLayout['structure'] === 'private' && $withLayout['layout'] === $layoutId, 'Link stores structure and layout reference.');
-rejects(static fn() => sl_config(array_replace($f, ['structure' => 'nope'])), 'Link structure validated.');
-rejects(static fn() => sl_config(array_replace($f, ['layout' => '../x'])), 'Link layout reference validated.');
-ob_start(); sl_render('landing', ['config' => $withLayout, 'target' => sl_target($withLayout), 'handoff' => '', 'preview' => false]); $privateHtml = ob_get_clean();
-check(strpos($privateHtml, 'body class="landing lp-private"') !== false, 'Chosen structure renders on the landing page.');
-check(strpos($privateHtml, 'id="open-external"') !== false && substr_count($privateHtml, 'id="secondary"') === 1, 'Structure keeps both actions.');
+// Following a brand is live; deviating values become an exception.
+$brandNow = sl_brand($brandId);
+$stored = sl_config(array_replace($f, ['brand_id' => $brandId, 'accent' => '#176b52']));
+check($stored['brand_id'] === $brandId, 'Link stores the brand reference.');
+rejects(static fn() => sl_config(array_replace($f, ['brand_id' => '../x'])), 'Link brand reference validated.');
+$stored['override'] = sl_presentation_differs($stored, $brandNow);
+check($stored['override'] === true, 'Deviating values become an exception.');
+$following = array_replace($stored, ['override' => false]);
+check(sl_effective($following)['accent'] === $brandNow['accent'], 'Following link resolves the brand palette live.');
+check(sl_effective($following)['structure'] === 'private', 'Following link resolves the brand structure.');
+check(sl_effective($stored)['accent'] === '#176b52', 'Exception keeps its own palette.');
+$same = array_replace($stored, ['override' => false]);
+foreach (SL_PRESENTATION as $key) $same[$key] = $brandNow[$key];
+check(!sl_presentation_differs($same, $brandNow), 'Matching values do not create an exception.');
+
+// New links start from the default brand.
+sl_set_default_brand($brandId);
+check(sl_settings()['brand_id'] === $brandId, 'Default brand stored.');
+$newLink = sl_new_link();
+check($newLink['brand_id'] === $brandId && $newLink['accent'] === $brandNow['accent'], 'New links inherit the default brand.');
+
+// Old links without a brand keep their stored look.
 sl_db()->prepare('INSERT INTO links(slug,config,created_at,updated_at) VALUES(?,?,?,?)')
     ->execute(['legacy-link', json_encode(['url' => 'https://example.com/', 'slug' => 'legacy-link']), '2026-01-01', '2026-01-01']);
-check(sl_link('legacy-link')['structure'] === 'card', 'Links without a stored structure fall back to card.');
-$settings = sl_settings(); $settings['layout'] = $layoutId;
-sl_db()->prepare('INSERT INTO settings(id,config) VALUES(1,?) ON CONFLICT(id) DO UPDATE SET config=excluded.config')
-    ->execute([json_encode($settings, JSON_THROW_ON_ERROR)]);
-sl_layout_delete($layoutId);
-check(sl_layout($layoutId) === null, 'Layout deleted.');
-check(sl_settings()['layout'] === '', 'Deleting the default layout clears the preset reference.');
-check(count(sl_layout_rows()) === 3, 'Only the requested layout is deleted.');
+check(sl_link('legacy-link')['structure'] === 'card', 'Links without a brand fall back to card.');
+
+ob_start(); sl_render('landing', ['config' => sl_effective($following), 'target' => sl_target($following), 'handoff' => '', 'preview' => false]); $brandHtml = ob_get_clean();
+check(strpos($brandHtml, 'body class="landing lp-private"') !== false, 'Brand structure renders on the landing page.');
+check(strpos($brandHtml, 'id="open-external"') !== false && substr_count($brandHtml, 'id="secondary"') === 1, 'Brand structure keeps both actions.');
+
+sl_brand_delete($brandId);
+check(sl_brand($brandId) === null, 'Brand deleted.');
+check(sl_settings()['brand_id'] === '', 'Deleting the default brand clears the reference.');
+check(count(sl_brand_rows()) === 3, 'Only the requested brand is deleted.');
 
 sl_session(['HTTP_HOST' => 'localhost:8088']);
 check(!sl_authenticated(), 'Anonymous session is unauthenticated.');
